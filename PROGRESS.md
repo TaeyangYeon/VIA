@@ -45,7 +45,7 @@
 
 ## Phase 6: 프론트엔드
 - [ ] Step 32: Electron 프로젝트 초기화
-- [ ] Step 33: React + TypeScript + TailwindCSS 설정
+- [ ] Step 33: React + TypeScript + TailwindCSS + 디자인 시스템 설정
 - [ ] Step 34: Redux Store 초기화 (directives 포함)
 - [ ] Step 35: API 클라이언트 서비스
 - [ ] Step 36: 전체 레이아웃 + Input Panel
@@ -71,5 +71,4 @@
 
 ---
 
-*VIA Master Development Plan v2.1 | Intel Mac + Ollama + Gemma4 멀티모달 | 50 Steps / 8 Phases*
-*Argos 실패 분석 기반 전면 재설계 — Vision Judge + Inspection Plan + Pipeline Block Library*
+*VIA Master Development Plan v3.0 | 50 Steps / 8 Phases*
