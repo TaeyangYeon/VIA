@@ -852,3 +852,50 @@ Badge Error       bg-red-500/20 text-red-400
 - **검증 포인트**: 문서 내용 및 최종 빌드 확인
 
 ---
+
+# Part 5. 실행 로그
+
+### Step 1: Python 환경 초기화 (2026-04-21)
+
+**작업 결과:**
+- pyenv + Python 3.11.15 가상환경(.venv) 생성
+- requirements.txt 작성: fastapi, uvicorn, opencv-python-headless, numpy, httpx, structlog, pytest, pydantic
+- pyproject.toml 작성: 프로젝트 메타데이터 (name=via, version=0.1.0, requires-python>=3.11, pytest testpaths 설정)
+- .python-version 파일 생성 (3.11.15)
+- .gitignore 생성: Python, Node, Electron, IDE, .claude/ 제외 설정
+
+**발생 이슈:**
+- requirements.txt에 opencv-python-headless를 명시했으나 opencv-python(GUI 버전)이 설치됨. VIA는 Electron UI를 사용하므로 기능상 동일하며 추후 정리 예정.
+- .gitignore를 초기 push 이후에 생성하여 이미 추적된 파일을 `git rm -r --cached .`로 제거 후 재커밋함.
+
+**생성/수정 파일:**
+- .python-version
+- pyproject.toml
+- requirements.txt
+- tests/__init__.py
+- tests/test_environment.py
+- .gitignore
+
+**테스트 결과:**
+- 12개 테스트 전체 GREEN (Python 버전 확인 1, 패키지 import 8, 프로젝트 파일 확인 2, .gitignore 확인 1)
+
+### Step 2: OpenCV + NumPy 설치 및 검증 (2026-04-21)
+
+**작업 결과:**
+- opencv-python-headless 4.13.0.92 설치 확인 (headless 버전 정상 사용)
+- numpy 2.4.4 설치 확인
+- Intel Mac x86_64 호환성 검증 완료
+- 기본 이미지 연산 검증 완료: 생성, 저장/로드, 색공간 변환, 가우시안 블러, 이진화 임계값
+- requirements.txt에 opencv-python-headless==4.13.0.92, numpy==2.4.4 핀 버전 반영
+
+**발생 이슈:**
+- Step 1에서 opencv-python(GUI)이 설치되었다고 기록했으나, 실제 확인 시 opencv-python-headless가 이미 설치되어 있음. 패키지 교체 불필요.
+
+**생성/수정 파일:**
+- tests/test_opencv.py (신규)
+- requirements.txt (핀 버전 업데이트)
+- PROGRESS.md
+
+**테스트 결과:**
+- 25개 테스트 전체 GREEN (Step 1: 11개 + Step 2: 14개)
+  - Step 2 세부: import 2, 버전 확인 2, 이미지 생성 2, 색공간 변환 1, 저장/로드 1, 가우시안 블러 1, 임계값 1, NumPy 연동 3, 아키텍처 확인 1
