@@ -1,0 +1,8 @@
+[project]
+name = "via"
+version = "0.1.0"
+description = "Vision Intelligence Agent - Multi-agent AI desktop app for automated computer vision algorithm design"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
