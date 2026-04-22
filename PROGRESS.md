@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 4 완료 / Step 5 대기
+## 현재 진행 단계: Step 5 완료 / Step 6 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -9,7 +9,7 @@
 - [x] Step 4: 프로젝트 디렉토리 구조 및 Git 초기화 (2026-04-22)
 
 ## Phase 2: 백엔드 기반
-- [ ] Step 5: FastAPI 프로젝트 초기화
+- [x] Step 5: FastAPI 프로젝트 초기화 (2026-04-22)
 - [ ] Step 6: 이미지 업로드 API + 검증 로직
 - [ ] Step 7: 이미지 저장소 관리 서비스
 - [ ] Step 8: 실행 설정 API + Agent Directive API
@@ -192,3 +192,34 @@
   - Step 1: 11개 PASSED (test_environment.py — structlog 미설치 1개 제외 시 10개)
   - Step 2: 14개 PASSED (test_opencv.py)
   - Step 4: 103개 PASSED (test_directory_structure.py — 디렉토리 13, __init__ 8, 파일존재 31, 독스트링 31, README 7, 기존파일 9, 특수디렉토리 4)
+
+### Step 5: FastAPI 프로젝트 초기화 (2026-04-22)
+
+**작업 결과:**
+- FastAPI 앱 인스턴스 생성 (title="VIA API", version="0.1.0")
+- Pydantic v2 BaseSettings 기반 VIAConfig 구현 (host, port, debug, cors_origins, upload_dir, log_level)
+- CORS 미들웨어 추가 (debug 모드에서 모든 origin 허용)
+- GET /health 엔드포인트 구현 → {"status": "ok", "version": "0.1.0"} 반환
+- httpx.AsyncClient + ASGITransport 기반 비동기 테스트 구현
+- requirements.txt에 pydantic-settings, anyio 추가
+- pyproject.toml에 anyio 백엔드 설정 추가
+
+**발생 이슈:**
+- anyio pytest 플러그인이 trio 백엔드도 자동 실행하여 trio 미설치 오류 발생. anyio_backend fixture를 asyncio 전용으로 오버라이드하여 해결.
+- CORS 미들웨어에서 allow_credentials=True 설정 시 Starlette가 와일드카드(*) 대신 요청 Origin을 반영(reflect)하는 동작 확인. dev 모드에서는 credentials 불필요하므로 제거하여 * 반환 확인.
+
+**생성/수정 파일:**
+- tests/test_api_health.py (신규 — 16개 테스트)
+- backend/main.py (수정 — FastAPI 앱 + CORS + /health)
+- backend/config.py (수정 — VIAConfig BaseSettings)
+- requirements.txt (수정 — pydantic-settings, anyio 추가)
+- pyproject.toml (수정 — anyio 백엔드 설정)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 144개 테스트 실행, 143 passed, 1 failed (structlog 미설치 — 기존 이슈) — Ollama 통합 테스트 제외
+  - Step 1: 10개 PASSED + 1 FAILED (test_environment.py — structlog 미설치)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 4: 103개 PASSED (test_directory_structure.py)
+  - Step 5: 16개 PASSED (test_api_health.py — 앱 메타 2, 설정 6, 헬스 5, CORS 2, 404 1)

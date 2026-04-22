@@ -6,3 +6,5 @@ httpx==0.28.1
 structlog
 pytest
 pydantic
+pydantic-settings
+anyio
