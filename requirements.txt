@@ -2,7 +2,7 @@ fastapi
 uvicorn
 opencv-python-headless==4.13.0.92
 numpy==2.4.4
-httpx
+httpx==0.28.1
 structlog
 pytest
 pydantic

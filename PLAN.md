@@ -899,3 +899,32 @@ Badge Error       bg-red-500/20 text-red-400
 **테스트 결과:**
 - 25개 테스트 전체 GREEN (Step 1: 11개 + Step 2: 14개)
   - Step 2 세부: import 2, 버전 확인 2, 이미지 생성 2, 색공간 변환 1, 저장/로드 1, 가우시안 블러 1, 임계값 1, NumPy 연동 3, 아키텍처 확인 1
+
+### Step 3: Ollama 설치 및 Gemma4 Pull + 멀티모달 검증 (2026-04-22)
+
+**작업 결과:**
+- Ollama 서버 시작 스크립트(scripts/start_ollama.sh) 작성: 설치 확인, 서버 시작, gemma4:e4b 모델 pull 자동화
+- Gemma4:e4b 멀티모달 통합 테스트 구현 (tests/test_ollama_multimodal.py)
+- 서버 연결, 모델 존재 확인, 텍스트 생성, 멀티모달 이미지 입력 테스트 포함
+- pytest integration 마커 추가 (Ollama 미실행 시 자동 skip)
+- 멀티모달 동작 확인 완료: 녹색 사각형 테스트 이미지를 Gemma4:e4b가 정확히 묘사함
+
+**발생 이슈:**
+- 초기 구현 시 gemma3:4b로 잘못 구현됨. PLAN에 명시된 gemma4:e4b가 실제 Ollama에 존재하는 모델임을 확인 후 수동으로 전체 수정 (test_ollama_multimodal.py, start_ollama.sh)
+- Intel Mac에서 멀티모달 첫 호출 시 모델 로딩 포함 약 2분 38초 소요. 기본 타임아웃(120초)으로는 부족하여 GENERATE_TIMEOUT=600.0, HEALTH_TIMEOUT=300.0으로 상향 조정
+- 멀티모달 테스트 9개 중 첫 번째 테스트에서 모델 로딩 시간 소비 후 나머지는 빠르게 통과하는 패턴 확인
+
+**생성/수정 파일:**
+- scripts/start_ollama.sh (신규)
+- tests/test_ollama_multimodal.py (신규)
+- pyproject.toml (integration 마커 추가)
+- requirements.txt (httpx==0.28.1 핀 버전)
+- PROGRESS.md (Step 3 완료 기록)
+- PLAN.md (Part 5 실행 로그 Step 3 추가)
+
+**테스트 결과:**
+- 34개 테스트 전체 GREEN (34 passed, 0 skipped, 0 failed) — 390초 (6분 30초)
+  - Step 1: 11개 PASSED (test_environment.py)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 3: 9개 PASSED (test_ollama_multimodal.py — 서버 상태 2, 모델 가용성 2, 텍스트 생성 2, 멀티모달 생성 3)
+- Integration 마커 필터 실행: 9 passed, 25 deselected — 396초 (6분 35초)
