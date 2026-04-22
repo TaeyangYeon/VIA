@@ -1,12 +1,12 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 3 완료 / Step 4 대기
+## 현재 진행 단계: Step 4 완료 / Step 5 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
 - [x] Step 2: OpenCV + NumPy 설치 및 검증 (2026-04-21)
 - [x] Step 3: Ollama 설치 및 Gemma4 Pull + 멀티모달 검증 (2026-04-22)
-- [ ] Step 4: 프로젝트 디렉토리 구조 및 Git 초기화
+- [x] Step 4: 프로젝트 디렉토리 구조 및 Git 초기화 (2026-04-22)
 
 ## Phase 2: 백엔드 기반
 - [ ] Step 5: FastAPI 프로젝트 초기화
@@ -150,3 +150,45 @@
   - Step 2: 14개 PASSED (test_opencv.py)
   - Step 3: 9개 PASSED (test_ollama_multimodal.py — 서버 상태 2, 모델 가용성 2, 텍스트 생성 2, 멀티모달 생성 3)
 - Integration 마커 필터 실행: 9 passed, 25 deselected — 396초 (6분 35초)
+
+### Step 4: 프로젝트 디렉토리 구조 및 Git 초기화 (2026-04-22)
+
+**작업 결과:**
+- 전체 프로젝트 디렉토리 구조 생성 (PLAN.md Section 2.5 기준)
+- backend/ 패키지: main.py, config.py, routers/ (6개 라우터), services/ (3개 서비스), models/
+- agents/ 패키지: 20개 에이전트 플레이스홀더 + prompts/
+- frontend/ 빈 디렉토리 (Phase 6에서 초기화 예정)
+- tests/e2e/, tests/fixtures/sample_images/ 디렉토리 생성
+- docs/ 디렉토리 생성 (.gitkeep)
+- README.md 작성: 프로젝트 설명, 기술 스택, 상태, Getting Started, 디렉토리 구조
+- 모든 플레이스홀더 .py 파일에 모듈 독스트링 포함 (구현 코드 없음)
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_directory_structure.py (신규 — 103개 테스트)
+- backend/__init__.py, backend/main.py, backend/config.py (신규)
+- backend/routers/__init__.py, images.py, config.py, directives.py, execute.py, logs.py, export.py (신규)
+- backend/services/__init__.py, ollama_client.py, image_store.py, logger.py (신규)
+- backend/models/__init__.py (신규)
+- agents/__init__.py, base_agent.py, models.py, orchestrator.py, spec_agent.py (신규)
+- agents/image_analysis_agent.py, pipeline_blocks.py, pipeline_composer.py (신규)
+- agents/parameter_searcher.py, processing_quality_evaluator.py (신규)
+- agents/vision_judge_agent.py, inspection_plan_agent.py, algorithm_selector.py (신규)
+- agents/algorithm_coder_inspection.py, algorithm_coder_align.py, code_validator.py (신규)
+- agents/test_agent_inspection.py, test_agent_align.py (신규)
+- agents/evaluation_agent.py, feedback_controller.py, decision_agent.py (신규)
+- agents/prompts/__init__.py (신규)
+- tests/e2e/__init__.py (신규)
+- tests/fixtures/sample_images/.gitkeep (신규)
+- docs/.gitkeep (신규)
+- README.md (신규)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 128개 테스트 전체 GREEN (128 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 1: 11개 PASSED (test_environment.py — structlog 미설치 1개 제외 시 10개)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 4: 103개 PASSED (test_directory_structure.py — 디렉토리 13, __init__ 8, 파일존재 31, 독스트링 31, README 7, 기존파일 9, 특수디렉토리 4)

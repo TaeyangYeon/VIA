@@ -928,3 +928,33 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 2: 14개 PASSED (test_opencv.py)
   - Step 3: 9개 PASSED (test_ollama_multimodal.py — 서버 상태 2, 모델 가용성 2, 텍스트 생성 2, 멀티모달 생성 3)
 - Integration 마커 필터 실행: 9 passed, 25 deselected — 396초 (6분 35초)
+
+### Step 4: 프로젝트 디렉토리 구조 및 Git 초기화 (2026-04-22)
+
+**작업 결과:**
+- PLAN.md Section 2.5 기준 전체 프로젝트 디렉토리 구조 생성
+- backend/ 패키지: main.py, config.py, routers/ (images, config, directives, execute, logs, export), services/ (ollama_client, image_store, logger), models/
+- agents/ 패키지: 20개 에이전트 플레이스홀더 (base_agent, models, orchestrator, spec_agent, image_analysis_agent, pipeline_blocks, pipeline_composer, parameter_searcher, processing_quality_evaluator, vision_judge_agent, inspection_plan_agent, algorithm_selector, algorithm_coder_inspection, algorithm_coder_align, code_validator, test_agent_inspection, test_agent_align, evaluation_agent, feedback_controller, decision_agent) + prompts/
+- frontend/ 빈 디렉토리 (Phase 6에서 초기화 예정)
+- tests/e2e/, tests/fixtures/sample_images/ 디렉토리 생성
+- docs/ 디렉토리 (.gitkeep)
+- README.md 작성: 프로젝트 설명, 기술 스택, 상태(Phase 1 in progress), Getting Started (Python 3.11, Ollama, gemma4:e4b), 디렉토리 구조
+- 모든 플레이스홀더 .py 파일에 모듈 독스트링 포함, 구현 코드 없음
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_directory_structure.py (신규 — 103개 테스트)
+- backend/ 패키지 전체 (15개 파일)
+- agents/ 패키지 전체 (22개 파일)
+- tests/e2e/__init__.py, tests/fixtures/sample_images/.gitkeep (신규)
+- docs/.gitkeep (신규)
+- README.md (신규)
+- PROGRESS.md, PLAN.md (수정)
+
+**테스트 결과:**
+- 128개 테스트 전체 GREEN (Ollama 통합 테스트 제외)
+  - Step 1: 11개 PASSED (test_environment.py)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 4: 103개 PASSED (test_directory_structure.py — 디렉토리 13, __init__ 8, 파일존재 31, 독스트링 31, README 7, 기존파일 9, 특수디렉토리 4)
