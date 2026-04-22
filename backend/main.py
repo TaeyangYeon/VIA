@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import VIAConfig
+from backend.routers.images import router as images_router
 
 config = VIAConfig()
 
@@ -15,6 +16,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+app.include_router(images_router, prefix="/api/images")
 
 
 @app.get("/health")

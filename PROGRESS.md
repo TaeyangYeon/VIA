@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 5 완료 / Step 6 대기
+## 현재 진행 단계: Step 6 완료 / Step 7 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -10,7 +10,7 @@
 
 ## Phase 2: 백엔드 기반
 - [x] Step 5: FastAPI 프로젝트 초기화 (2026-04-22)
-- [ ] Step 6: 이미지 업로드 API + 검증 로직
+- [x] Step 6: 이미지 업로드 API + 검증 로직 (2026-04-22)
 - [ ] Step 7: 이미지 저장소 관리 서비스
 - [ ] Step 8: 실행 설정 API + Agent Directive API
 - [ ] Step 9: 로깅 시스템 구현
@@ -223,3 +223,40 @@
   - Step 2: 14개 PASSED (test_opencv.py)
   - Step 4: 103개 PASSED (test_directory_structure.py)
   - Step 5: 16개 PASSED (test_api_health.py — 앱 메타 2, 설정 6, 헬스 5, CORS 2, 404 1)
+
+### Step 6: 이미지 업로드 API + 검증 로직 (2026-04-22)
+
+**작업 결과:**
+- ImageValidator 서비스 구현 (backend/services/image_validator.py)
+  - 파일명 규칙 검증: OK_N.ext / NG_N.ext 패턴 (N은 1 이상 양의 정수)
+  - 확장자 검증: .png, .jpg, .jpeg, .bmp, .tiff 허용
+  - 파일 크기 검증: 50MB 제한
+  - 이미지 무결성 검증: cv2.imdecode로 실제 이미지 디코딩 확인
+- POST /api/images/upload 엔드포인트 구현 (backend/routers/images.py)
+  - UploadFile + purpose 쿼리 파라미터 (analysis / test)
+  - 5단계 검증: purpose → 파일명 → 확장자 → 크기 → 이미지 무결성
+  - 성공 시 {upload_dir}/{purpose}/{filename} 경로에 파일 저장
+  - JSON 응답: id (uuid4), filename, label, index, purpose, path
+  - 실패 시 422 + detail 메시지 반환
+- FastAPI 앱에 images 라우터 등록 (prefix=/api/images)
+- requirements.txt에 python-multipart==0.0.22 핀 버전 추가
+
+**발생 이슈:**
+- python-multipart가 requirements.txt에 추가되었으나 실제 설치가 누락되어 모든 테스트가 collection error 발생. pip install python-multipart로 해결. 버전 0.0.22 핀 적용.
+
+**생성/수정 파일:**
+- tests/test_image_upload.py (신규 — 32개 테스트)
+- backend/services/image_validator.py (수정 — ImageValidator 구현)
+- backend/routers/images.py (수정 — POST /upload 엔드포인트)
+- backend/main.py (수정 — images 라우터 등록)
+- requirements.txt (수정 — python-multipart 추가)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 176개 테스트 실행, 175 passed, 1 failed (structlog 미설치 — 기존 이슈) — Ollama 통합 테스트 제외
+  - Step 1: 10개 PASSED + 1 FAILED (test_environment.py — structlog 미설치)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 4: 103개 PASSED (test_directory_structure.py)
+  - Step 5: 16개 PASSED (test_api_health.py)
+  - Step 6: 32개 PASSED (test_image_upload.py — 유효파일명 5, 무효파일명 8, purpose 검증 1, 파일크기 1, 이미지무결성 2, 업로드성공 3, purpose라우팅 3, Validator단위 9)

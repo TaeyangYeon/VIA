@@ -988,3 +988,30 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 2: 14개 PASSED (test_opencv.py)
   - Step 4: 103개 PASSED (test_directory_structure.py)
   - Step 5: 16개 PASSED (test_api_health.py — 앱 메타 2, 설정 6, 헬스 5, CORS 2, 404 1)
+
+### Step 6: 이미지 업로드 API + 검증 로직 (2026-04-22)
+
+**작업 결과:**
+- ImageValidator 서비스 구현: 파일명 규칙(OK_N/NG_N), 확장자(.png/.jpg/.jpeg/.bmp/.tiff), 크기(50MB), 이미지 무결성(cv2.imdecode) 검증
+- POST /api/images/upload 엔드포인트 구현: UploadFile + purpose(analysis/test) 쿼리 파라미터, 5단계 순차 검증, 성공 시 디스크 저장 + JSON 응답
+- FastAPI 앱에 images 라우터 등록 (prefix=/api/images)
+- requirements.txt에 python-multipart==0.0.22 핀 버전 추가
+
+**발생 이슈:**
+- python-multipart가 requirements.txt에 추가되었으나 실제 설치가 누락되어 모든 테스트가 collection error 발생. pip install python-multipart로 해결. 버전 0.0.22 핀 적용.
+
+**생성/수정 파일:**
+- tests/test_image_upload.py (신규 — 32개 테스트)
+- backend/services/image_validator.py (수정 — ImageValidator 구현)
+- backend/routers/images.py (수정 — POST /upload 엔드포인트)
+- backend/main.py (수정 — images 라우터 등록)
+- requirements.txt (수정 — python-multipart==0.0.22 핀 버전 추가)
+- PROGRESS.md, PLAN.md (수정)
+
+**테스트 결과:**
+- 176개 테스트 실행, 175 passed, 1 failed (structlog 미설치 — 기존 이슈) — Ollama 통합 테스트 제외
+  - Step 1: 10개 PASSED + 1 FAILED (test_environment.py — structlog 미설치)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 4: 103개 PASSED (test_directory_structure.py)
+  - Step 5: 16개 PASSED (test_api_health.py)
+  - Step 6: 32개 PASSED (test_image_upload.py — 유효파일명 5, 무효파일명 8, purpose 검증 1, 파일크기 1, 이미지무결성 2, 업로드성공 3, purpose라우팅 3, Validator단위 9)

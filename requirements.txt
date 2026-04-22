@@ -8,3 +8,4 @@ pytest
 pydantic
 pydantic-settings
 anyio
+python-multipart==0.0.22
