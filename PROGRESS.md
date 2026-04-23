@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 9 완료 / Step 10 대기
+## 현재 진행 단계: Step 10 완료 / Step 11 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -14,7 +14,7 @@
 - [x] Step 7: 이미지 저장소 관리 서비스 (2026-04-23)
 - [x] Step 8: 실행 설정 API + Agent Directive API (2026-04-23)
 - [x] Step 9: 로깅 시스템 구현 (2026-04-23)
-- [ ] Step 10: Ollama 클라이언트 서비스 (멀티모달 지원)
+- [x] Step 10: Ollama 클라이언트 서비스 (멀티모달 지원) (2026-04-23)
 
 ## Phase 3: 이미지 처리 레이어
 - [ ] Step 11: Agent 기본 인터페이스 + 전체 모델 정의
@@ -386,3 +386,42 @@
   - Step 9: 36개 PASSED (test_logger.py)
     - VIALogger 단위: log 9, get_logs 6, clear 2, get_agents 3, buffer 2, thread safety 1, singleton 1
     - API 통합: GET /api/logs 7, GET /api/logs/agents 3, DELETE /api/logs 3
+
+### Step 10: Ollama 클라이언트 서비스 (2026-04-23)
+
+**작업 결과:**
+- OllamaClient 비동기 서비스 구현 (backend/services/ollama_client.py)
+  - httpx.AsyncClient 기반 비동기 HTTP 클라이언트
+  - 커스텀 예외 계층: OllamaError(base) → OllamaConnectionError / OllamaModelNotFoundError / OllamaGenerationError
+  - check_health(): GET /api/tags로 서버 상태 확인 + 모델 존재 검증
+  - generate(prompt, system): POST /api/generate, stream=false, 텍스트 응답 반환
+  - generate_with_images(prompt, images, system): base64 이미지 리스트 포함 멀티모달 생성
+  - generate_with_image_paths(prompt, image_paths, system): 파일 읽기 → base64 인코딩 → generate_with_images 위임
+  - 재시도 로직: max_retries=2 (기본값), TimeoutException/ConnectError 시 지수 백오프(1s, 2s)
+  - 타임아웃: health_timeout=30.0, generate_timeout=600.0
+  - VIALogger 연동: 모든 요청 INFO 로그, 오류 ERROR 로그 (agent="ollama_client")
+  - async with 컨텍스트 매니저 지원 (aclose() 보장)
+  - 모듈 레벨 싱글톤: ollama_client = OllamaClient()
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_ollama_client.py (신규 — 38개 테스트)
+- backend/services/ollama_client.py (수정 — OllamaClient 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 334개 테스트 전체 GREEN (334 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 1: 11개 PASSED
+  - Step 2: 14개 PASSED
+  - Step 4: 103개 PASSED
+  - Step 5: 16개 PASSED
+  - Step 6: 32개 PASSED
+  - Step 7: 38개 PASSED
+  - Step 8: 46개 PASSED
+  - Step 9: 36개 PASSED
+  - Step 10: 38개 PASSED (test_ollama_client.py)
+    - 예외 계층 4, 생성자 기본값 6, check_health 5, generate 8
+    - generate_with_images 3, generate_with_image_paths 3, retry 4, logging 2, context manager 2, singleton 1

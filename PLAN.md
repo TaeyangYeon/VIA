@@ -818,7 +818,7 @@ Badge Error       bg-red-500/20 text-red-400
 - **검증 포인트**: 응답 시간 측정 및 기준 달성 확인
 
 ### Step 45 — 에러 처리 강화 + 결과 내보내기
-- **작업 내용**: 에이전트별 예외 처리. UI 에러 표시. 결과 JSON + .py 코드 내보내기
+- **작업 내용**: 에이전트별 예외 처리. UI 에러 표시. 결과 JSON + .py 코드 내보내기. OllamaClient 싱글톤 graceful shutdown 처리 (httpx.AsyncClient aclose) — Step 10에서 식별된 리소스 누수 가능성 해소
 - **생성 파일**: `backend/services/error_handler.py`, `backend/routers/export.py`, `frontend/src/components/ExportButton.tsx`
 - **검증 포인트**: 에러 시나리오 및 내보낸 파일 확인
 
@@ -1152,3 +1152,43 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 9: 36개 PASSED (test_logger.py)
     - VIALogger 단위: log 9, get_logs 6, clear 2, get_agents 3, buffer 2, thread safety 1, singleton 1
     - API 통합: GET /api/logs 7, GET /api/logs/agents 3, DELETE /api/logs 3
+
+### Step 10: Ollama 클라이언트 서비스 (2026-04-23)
+
+**작업 결과:**
+- OllamaClient 비동기 서비스 구현 (backend/services/ollama_client.py)
+  - httpx.AsyncClient 래퍼, 모든 퍼블릭 메서드 async
+  - 커스텀 예외 계층: OllamaError(base) → OllamaConnectionError / OllamaModelNotFoundError / OllamaGenerationError (동일 파일 내 정의)
+  - check_health(): GET /api/tags로 서버 확인 + 모델 존재 검증 (health_timeout=30.0 기본값)
+  - generate(prompt, system=None): POST /api/generate, stream=false, response 필드 텍스트 반환
+  - generate_with_images(prompt, images, system=None): base64 문자열 리스트, data URI 접두사 없음
+  - generate_with_image_paths(prompt, image_paths, system=None): 파일 읽기 → base64.b64encode → decode → generate_with_images 위임
+  - 재시도: max_retries=2(기본), TimeoutException/ConnectError 시 지수 백오프(2**attempt: 1s, 2s)
+  - 비어있거나 non-200 응답 즉시 OllamaGenerationError (재시도 없음)
+  - VIALogger 연동: 요청/응답 INFO, 오류 ERROR (agent="ollama_client")
+  - async with 컨텍스트 매니저: __aenter__에서 httpx.AsyncClient 생성, __aexit__에서 aclose()
+  - 직접 사용 시 _get_client() 지연 초기화
+  - 모듈 레벨 싱글톤: ollama_client = OllamaClient()
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_ollama_client.py (신규 — 38개 테스트)
+- backend/services/ollama_client.py (수정 — OllamaClient 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 334개 테스트 전체 GREEN (334 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 1: 11개 PASSED (test_environment.py)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 4: 103개 PASSED (test_directory_structure.py)
+  - Step 5: 16개 PASSED (test_api_health.py)
+  - Step 6: 32개 PASSED (test_image_upload.py)
+  - Step 7: 38개 PASSED (test_image_store.py)
+  - Step 8: 46개 PASSED (test_config_api.py + test_directive_api.py)
+  - Step 9: 36개 PASSED (test_logger.py)
+  - Step 10: 38개 PASSED (test_ollama_client.py)
+    - 예외 계층 4, 생성자 기본값 6, check_health 5, generate 8
+    - generate_with_images 3, generate_with_image_paths 3, retry 4, logging 2, context manager 2, singleton 1
