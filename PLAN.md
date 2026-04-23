@@ -1052,3 +1052,56 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 5: 16개 PASSED (test_api_health.py)
   - Step 6: 32개 PASSED (test_image_upload.py)
   - Step 7: 38개 PASSED (test_image_store.py — add 4, get 3, list_all 5, delete 5, clear 3, count 3, API list 4, API get 2, API delete 2, API clear 2, upload-store통합 5)
+
+### Step 8: 실행 설정 API + Agent Directive API (2026-04-23)
+
+**작업 결과:**
+- ConfigStore 인메모리 서비스 구현 (backend/services/config_store.py)
+  - save: ExecutionConfig 저장 (덮어쓰기)
+  - get: 현재 설정 반환 (미설정 시 None)
+  - clear: 설정 초기화
+- DirectiveStore 인메모리 서비스 구현 (backend/services/directive_store.py)
+  - 8개 에이전트 필드: orchestrator, spec, image_analysis, pipeline_composer, vision_judge, inspection_plan, algorithm_coder, test
+  - get: 전체 디렉티브 반환
+  - save: 다수 필드 일괄 저장
+  - update: 단일 에이전트 디렉티브 갱신 (미존재 시 ValueError)
+  - reset: 전체 필드를 None으로 초기화
+- Execution Config API 구현 (backend/routers/config.py)
+  - POST /api/config: 설정 저장 + 극단적 목표 경고 반환
+  - GET /api/config: 저장된 설정 반환 (없으면 404)
+  - Pydantic v2 모델: InspectionCriteria (accuracy/fp_rate/fn_rate), AlignCriteria (coord_error/success_rate)
+  - mode: "inspection" | "align" (Literal)
+  - max_iteration: 기본값 5, 범위 1-20
+  - 극단적 목표 경고 로직: accuracy>0.99, fp_rate<0.001, fn_rate<0.001, coord_error<0.5
+- Agent Directive API 구현 (backend/routers/directives.py)
+  - POST /api/directives: 디렉티브 일괄 저장
+  - GET /api/directives: 현재 디렉티브 반환 (초기 전체 None)
+  - PUT /api/directives/{agent_name}: 단일 에이전트 디렉티브 갱신 (미존재 시 404)
+  - DELETE /api/directives: 전체 디렉티브 초기화
+- backend/main.py에 config_router, directives_router 등록
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_config_api.py (신규 — 23개 테스트)
+- tests/test_directive_api.py (신규 — 23개 테스트)
+- backend/services/config_store.py (신규 — ConfigStore 구현)
+- backend/services/directive_store.py (신규 — DirectiveStore 구현)
+- backend/routers/config.py (수정 — Config 엔드포인트 구현)
+- backend/routers/directives.py (수정 — Directive 엔드포인트 구현)
+- backend/main.py (수정 — 라우터 등록)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 260개 테스트 전체 GREEN (260 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 1: 11개 PASSED (test_environment.py — structlog 설치됨으로 1개 추가 통과)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 4: 103개 PASSED (test_directory_structure.py)
+  - Step 5: 16개 PASSED (test_api_health.py)
+  - Step 6: 32개 PASSED (test_image_upload.py)
+  - Step 7: 38개 PASSED (test_image_store.py)
+  - Step 8: 46개 PASSED (test_config_api.py 23개 + test_directive_api.py 23개)
+    - Config: store단위 4, POST검증 6, GET 2, 극단경고 7
+    - Directive: store단위 6, POST 6, GET 3, PUT 5, DELETE 3
