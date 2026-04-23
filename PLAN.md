@@ -1015,3 +1015,40 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 4: 103개 PASSED (test_directory_structure.py)
   - Step 5: 16개 PASSED (test_api_health.py)
   - Step 6: 32개 PASSED (test_image_upload.py — 유효파일명 5, 무효파일명 8, purpose 검증 1, 파일크기 1, 이미지무결성 2, 업로드성공 3, purpose라우팅 3, Validator단위 9)
+
+### Step 7: 이미지 저장소 관리 서비스 (2026-04-23)
+
+**작업 결과:**
+- ImageStore 인메모리 서비스 구현 (backend/services/image_store.py)
+  - add: 메타데이터 저장 + uploaded_at(UTC ISO 8601) 자동 부여
+  - get: image_id로 단일 조회 (없으면 None)
+  - list_all: 전체 목록 조회 (purpose, label 필터 지원)
+  - delete: 메타데이터 삭제 + 디스크 파일 삭제 (FileNotFoundError graceful 처리)
+  - clear: 전체 또는 purpose별 일괄 삭제
+  - count: 전체 또는 purpose별 개수 반환
+- 모듈 레벨 싱글톤 패턴 (image_store = ImageStore())
+- REST API 엔드포인트 추가 (backend/routers/images.py)
+  - GET /api/images: 목록 조회 (purpose, label 쿼리 파라미터)
+  - GET /api/images/{image_id}: 단일 조회 (404 처리)
+  - DELETE /api/images/{image_id}: 단일 삭제 (메타+파일, 404 처리)
+  - DELETE /api/images: 전체/purpose별 일괄 삭제
+- 기존 POST /api/images/upload에 ImageStore 연동: 업로드 성공 시 자동 등록, 응답에 uploaded_at 포함
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_image_store.py (신규 — 38개 테스트)
+- backend/services/image_store.py (수정 — ImageStore 클래스 구현)
+- backend/routers/images.py (수정 — GET/DELETE 엔드포인트 추가 + store 연동)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 214개 테스트 실행, 213 passed, 1 failed (structlog 미설치 — 기존 이슈) — Ollama 통합 테스트 9개 제외
+  - Step 1: 10개 PASSED + 1 FAILED (test_environment.py — structlog 미설치)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 4: 103개 PASSED (test_directory_structure.py)
+  - Step 5: 16개 PASSED (test_api_health.py)
+  - Step 6: 32개 PASSED (test_image_upload.py)
+  - Step 7: 38개 PASSED (test_image_store.py — add 4, get 3, list_all 5, delete 5, clear 3, count 3, API list 4, API get 2, API delete 2, API clear 2, upload-store통합 5)
