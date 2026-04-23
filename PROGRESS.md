@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 10 완료 / Step 11 대기
+## 현재 진행 단계: Step 11 완료 / Step 12 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -17,7 +17,7 @@
 - [x] Step 10: Ollama 클라이언트 서비스 (멀티모달 지원) (2026-04-23)
 
 ## Phase 3: 이미지 처리 레이어
-- [ ] Step 11: Agent 기본 인터페이스 + 전체 모델 정의
+- [x] Step 11: Agent 기본 인터페이스 + 전체 모델 정의 (2026-04-23)
 - [ ] Step 12: Spec Agent 구현
 - [ ] Step 13: Image Analysis Agent (ImageDiagnosis 전체)
 - [ ] Step 14: Pipeline Block Library 구현
@@ -425,3 +425,37 @@
   - Step 10: 38개 PASSED (test_ollama_client.py)
     - 예외 계층 4, 생성자 기본값 6, check_health 5, generate 8
     - generate_with_images 3, generate_with_image_paths 3, retry 4, logging 2, context manager 2, singleton 1
+
+### Step 11: Agent 기본 인터페이스 + 전체 모델 정의 (2026-04-23)
+
+**작업 결과:**
+- 7개 Enum 구현 (agents/models.py): InspectionMode, AlgorithmCategory, FailureReason, DecisionType, DefectScale, IlluminationType, NoiseFrequency — 모두 (str, Enum) 상속으로 JSON 직렬화 호환
+- 16개 dataclass 구현 (agents/models.py): ImageDiagnosis(21개 필드), PipelineBlock, ProcessingPipeline, JudgementResult, InspectionItem, InspectionPlan, SpecResult, TestMetrics, ItemTestResult, EvaluationResult, FeedbackAction, DecisionResult, AgentDirectives(8개 Optional[str] 필드), ExecutionProgress, AlgorithmResult
+- BaseAgent 추상 기반 클래스 구현 (agents/base_agent.py): ABC + abstractmethod execute(), agent_name 프로퍼티, get_directive()/set_directive(), _log() — via_logger 싱글톤 연동
+- 모든 가변 기본값에 field(default_factory=list/dict) 적용으로 mutable default 문제 방지
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_models.py (신규 — 73개 테스트)
+- agents/models.py (수정 — 7개 Enum + 16개 dataclass 전체 구현)
+- agents/base_agent.py (수정 — BaseAgent 추상 클래스 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 407개 테스트 전체 GREEN (407 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 1: 11개 PASSED
+  - Step 2: 14개 PASSED
+  - Step 4: 103개 PASSED
+  - Step 5: 16개 PASSED
+  - Step 6: 32개 PASSED
+  - Step 7: 38개 PASSED
+  - Step 8: 46개 PASSED
+  - Step 9: 36개 PASSED
+  - Step 10: 38개 PASSED
+  - Step 11: 73개 PASSED (test_models.py)
+    - Enum: InspectionMode 3, AlgorithmCategory 3, FailureReason 2, DecisionType 2, DefectScale 2, IlluminationType 2, NoiseFrequency 2
+    - Dataclass: ImageDiagnosis 5, PipelineBlock 3, ProcessingPipeline 4, JudgementResult 3, InspectionItem 3, InspectionPlan 2, SpecResult 2, TestMetrics 3, ItemTestResult 3, EvaluationResult 4, FeedbackAction 3, DecisionResult 2, AgentDirectives 5, ExecutionProgress 2, AlgorithmResult 2
+    - BaseAgent: abstract 3, properties 5, logging 3
