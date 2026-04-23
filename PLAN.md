@@ -1193,6 +1193,36 @@ Badge Error       bg-red-500/20 text-red-400
     - 예외 계층 4, 생성자 기본값 6, check_health 5, generate 8
     - generate_with_images 3, generate_with_image_paths 3, retry 4, logging 2, context manager 2, singleton 1
 
+### Step 12: Spec Agent 구현 (2026-04-23)
+
+**작업 결과:**
+- SpecAgent 구현 (agents/spec_agent.py): BaseAgent 상속, execute(user_text) → SpecResult
+- JSON 파싱 로직: markdown code fence(```json ... ```) 자동 제거, 실패 시 1회 retry, 2회 모두 실패 시 ValueError 발생
+- 모드 기본값: 인식 불가 mode → "inspection" + WARNING 로그
+- success_criteria 기본값 자동 적용 (inspection: accuracy=0.95, fp_rate=0.05, fn_rate=0.05 / align: coord_error=2.0, success_rate=0.9)
+- 프롬프트 모듈 구현 (agents/prompts/spec_prompt.py): SPEC_SYSTEM_PROMPT 상수 + build_spec_prompt(user_text, directive) 순수 함수
+- Agent Directive 지원: directive가 있으면 사용자 프롬프트에 추가
+- 모든 OllamaClient 호출 AsyncMock으로 격리 (실제 Ollama 호출 없음)
+
+**발생 이슈:**
+- PCRO 프롬프트에서 SpecResult 필드명을 "objective"로 기술했으나 실제 models.py에는 "goal"로 정의됨 — 파일을 먼저 읽어 확인 후 올바른 필드명 사용
+
+**생성/수정 파일:**
+- tests/test_spec_agent.py (신규 — 26개 테스트)
+- agents/prompts/spec_prompt.py (신규)
+- agents/spec_agent.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 433개 테스트 전체 GREEN (433 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 12: 26개 PASSED (test_spec_agent.py)
+    - 클래스 구조: 4 (상속, agent_name, directive 저장)
+    - 프롬프트 템플릿: 9 (user_text 포함, directive 포함, system prompt 내용 검증)
+    - execute() 핵심: 5 (inspection/align/Korean 파싱, system 프롬프트 전달, directive 전달)
+    - 기본값 처리: 4 (inspection/align 기본값, 부분 기본값, 미인식 mode)
+    - JSON 파싱 견고성: 4 (markdown code block, plain code block, retry, 이중 실패 예외)
+
 ### Step 11: Agent 기본 인터페이스 + 전체 모델 정의 (2026-04-23)
 
 **작업 결과:**
