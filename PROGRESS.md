@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 8 완료 / Step 9 대기
+## 현재 진행 단계: Step 9 완료 / Step 10 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -13,7 +13,7 @@
 - [x] Step 6: 이미지 업로드 API + 검증 로직 (2026-04-22)
 - [x] Step 7: 이미지 저장소 관리 서비스 (2026-04-23)
 - [x] Step 8: 실행 설정 API + Agent Directive API (2026-04-23)
-- [ ] Step 9: 로깅 시스템 구현
+- [x] Step 9: 로깅 시스템 구현 (2026-04-23)
 - [ ] Step 10: Ollama 클라이언트 서비스 (멀티모달 지원)
 
 ## Phase 3: 이미지 처리 레이어
@@ -350,3 +350,39 @@
   - Step 8: 46개 PASSED (test_config_api.py 23개 + test_directive_api.py 23개)
     - Config: store단위 4, POST검증 6, GET 2, 극단경고 7
     - Directive: store단위 6, POST 6, GET 3, PUT 5, DELETE 3
+
+### Step 9: 로깅 시스템 구현 (2026-04-23)
+
+**작업 결과:**
+- VIALogger 인메모리 서비스 구현 (backend/services/logger.py)
+  - structlog 25.5.0 기반 JSON stdout 출력
+  - 에이전트 인식 로그 (agent 필드), 레벨: DEBUG/INFO/WARNING/ERROR
+  - collections.deque(maxlen=1000) 버퍼, threading.Lock 스레드 안전
+  - log(), get_logs(agent, level, limit), clear(), get_agents() 메서드
+  - 모듈 레벨 싱글톤: via_logger = VIALogger()
+- Logs REST API (backend/routers/logs.py)
+  - GET /api/logs, GET /api/logs/agents, DELETE /api/logs
+- backend/main.py에 logs_router 등록
+
+**발생 이슈:**
+- structlog 미설치 상태 — pip install structlog(25.5.0)으로 해결
+
+**생성/수정 파일:**
+- tests/test_logger.py (신규)
+- backend/services/logger.py (구현)
+- backend/routers/logs.py (구현)
+- backend/main.py (수정)
+- PLAN.md, PROGRESS.md (수정)
+
+**테스트 결과:**
+- 296개 전체 GREEN (296 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 1: 11개 PASSED
+  - Step 2: 14개 PASSED
+  - Step 4: 103개 PASSED
+  - Step 5: 16개 PASSED
+  - Step 6: 32개 PASSED
+  - Step 7: 38개 PASSED
+  - Step 8: 46개 PASSED
+  - Step 9: 36개 PASSED (test_logger.py)
+    - VIALogger 단위: log 9, get_logs 6, clear 2, get_agents 3, buffer 2, thread safety 1, singleton 1
+    - API 통합: GET /api/logs 7, GET /api/logs/agents 3, DELETE /api/logs 3

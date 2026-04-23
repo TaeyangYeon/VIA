@@ -7,6 +7,7 @@ from backend.config import VIAConfig
 from backend.routers.config import router as config_router
 from backend.routers.directives import router as directives_router
 from backend.routers.images import router as images_router
+from backend.routers.logs import router as logs_router
 
 config = VIAConfig()
 
@@ -23,6 +24,7 @@ app.add_middleware(
 app.include_router(images_router, prefix="/api/images")
 app.include_router(config_router, prefix="/api/config")
 app.include_router(directives_router, prefix="/api/directives")
+app.include_router(logs_router, prefix="/api/logs")
 
 
 @app.get("/health")

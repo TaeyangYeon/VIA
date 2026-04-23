@@ -1105,3 +1105,50 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 8: 46개 PASSED (test_config_api.py 23개 + test_directive_api.py 23개)
     - Config: store단위 4, POST검증 6, GET 2, 극단경고 7
     - Directive: store단위 6, POST 6, GET 3, PUT 5, DELETE 3
+
+### Step 9: 로깅 시스템 구현 (2026-04-23)
+
+**작업 결과:**
+- VIALogger 인메모리 서비스 구현 (backend/services/logger.py)
+  - structlog 기반 JSON stdout 출력 (TimeStamper ISO UTC + JSONRenderer)
+  - 에이전트 인식 로그: 모든 엔트리에 agent 필드 포함
+  - 로그 레벨: DEBUG, INFO, WARNING, ERROR (유효성 검증)
+  - 엔트리 구조: timestamp(ISO 8601 UTC), agent, level, message, details(Optional[dict])
+  - 인메모리 버퍼: collections.deque(maxlen=1000), 기본 max_size=1000
+  - log(agent, level, message, details): 엔트리 추가 + structlog stdout 출력
+  - get_logs(agent, level, limit=100): 필터링 + newest-first 반환
+  - clear(): 버퍼 전체 초기화
+  - get_agents(): 로그한 에이전트 고유 목록 반환
+  - threading.Lock으로 버퍼 접근 스레드 안전 보장
+  - 모듈 레벨 싱글톤: via_logger = VIALogger()
+  - 빈 agent 또는 잘못된 level 시 ValueError 발생
+- Logs REST API 구현 (backend/routers/logs.py)
+  - GET /api/logs: agent/level/limit 쿼리 파라미터 지원, { logs, total } 응답
+  - GET /api/logs/agents: 로그한 에이전트 목록 반환
+  - DELETE /api/logs: 전체 로그 초기화
+- backend/main.py에 logs_router 등록 (prefix=/api/logs)
+- pip install structlog 실행 (25.5.0 설치)
+
+**발생 이슈:**
+- structlog가 requirements.txt에 명시되어 있었으나 실제 미설치 상태였음. pip install structlog으로 즉시 해결.
+
+**생성/수정 파일:**
+- tests/test_logger.py (신규 — 36개 테스트)
+- backend/services/logger.py (수정 — VIALogger 클래스 구현)
+- backend/routers/logs.py (수정 — Logs 엔드포인트 구현)
+- backend/main.py (수정 — logs_router 등록)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 296개 테스트 전체 GREEN (296 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 1: 11개 PASSED (test_environment.py)
+  - Step 2: 14개 PASSED (test_opencv.py)
+  - Step 4: 103개 PASSED (test_directory_structure.py)
+  - Step 5: 16개 PASSED (test_api_health.py)
+  - Step 6: 32개 PASSED (test_image_upload.py)
+  - Step 7: 38개 PASSED (test_image_store.py)
+  - Step 8: 46개 PASSED (test_config_api.py 23개 + test_directive_api.py 23개)
+  - Step 9: 36개 PASSED (test_logger.py)
+    - VIALogger 단위: log 9, get_logs 6, clear 2, get_agents 3, buffer 2, thread safety 1, singleton 1
+    - API 통합: GET /api/logs 7, GET /api/logs/agents 3, DELETE /api/logs 3
