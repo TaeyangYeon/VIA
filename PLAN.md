@@ -1234,6 +1234,29 @@ Badge Error       bg-red-500/20 text-red-400
     - 클래스 구조 8, 대비/노이즈/엣지/균일도 10, 조명/주파수 4, 반사/텍스처/표면/결함 7
     - 블롭/컬러 7, 구조/패턴/배경/색공간/임계값/선명도 12, 엣지케이스 8, 전체실행 4+1(parametrize)
 
+### Step 14: Pipeline Block Library 구현 (2026-04-24)
+
+**작업 결과:**
+- BlockDefinition 클래스: name, category, params(검색 공간 dict[str, list]), apply(image, params), matches(diagnosis) 5개 필드
+- 21개 블록 전체 구현 — color_space 3, noise_reduction 6, threshold 3, morphology 6, edge 3
+- 그레이스케일 자동 변환 (threshold/morphology/edge), 컬러 미사용 시 unchanged 반환 (hsv_s/lab_l)
+- PipelineBlockLibrary: get_block, get_all_blocks, get_categories, get_blocks_by_category, get_matching_blocks
+- 모듈 레벨 싱글톤 block_library = PipelineBlockLibrary()
+- LLM 호출 전혀 없음 — 완전 규칙 기반 순수 함수
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_pipeline_blocks.py (신규 — 63개 테스트)
+- agents/pipeline_blocks.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 559개 테스트 전체 GREEN (559 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 14: 63개 PASSED (test_pipeline_blocks.py)
+
 ### Step 12: Spec Agent 구현 (2026-04-23)
 
 **작업 결과:**

@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 13 완료 / Step 14 대기
+## 현재 진행 단계: Step 14 완료 / Step 15 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -20,7 +20,7 @@
 - [x] Step 11: Agent 기본 인터페이스 + 전체 모델 정의 (2026-04-23)
 - [x] Step 12: Spec Agent 구현 (2026-04-23)
 - [x] Step 13: Image Analysis Agent (ImageDiagnosis 전체) (2026-04-24)
-- [ ] Step 14: Pipeline Block Library 구현
+- [x] Step 14: Pipeline Block Library 구현 (2026-04-24)
 - [ ] Step 15: Pipeline Composer 구현
 - [ ] Step 16: Parameter Searcher + ProcessingQualityEvaluator
 - [ ] Step 17: Vision Judge Agent (멀티모달 핵심)
@@ -455,6 +455,54 @@
     - execute() 핵심: 5 (inspection/align/Korean 파싱, system 프롬프트 전달, directive 전달)
     - 기본값 처리: 4 (inspection/align 기본값, 부분 기본값, 미인식 mode)
     - JSON 파싱 견고성: 4 (markdown code block, plain code block, retry, 이중 실패 예외)
+
+### Step 14: Pipeline Block Library 구현 (2026-04-24)
+
+**작업 결과:**
+- BlockDefinition 클래스 구현: name, category, params(검색 공간), apply(image, params), matches(diagnosis) 5개 필드
+- 21개 블록 정의 — 5개 카테고리:
+  - color_space (3): grayscale, hsv_s, lab_l
+  - noise_reduction (6): gaussian_fine, gaussian_mid, bilateral, median, nlmeans, clahe
+  - threshold (3): otsu, adaptive_mean, adaptive_gauss
+  - morphology (6): erosion, dilation, opening, closing, tophat, blackhat
+  - edge (3): canny, sobel, laplacian
+- 각 블록의 apply() 구현:
+  - grayscale: cv2.cvtColor BGR2GRAY (color만), gray 입력 시 그대로 반환
+  - hsv_s/lab_l: 컬러 입력 → 해당 채널 추출 2D 반환, 그레이 입력 시 unchanged
+  - gaussian_fine/mid: cv2.GaussianBlur (0,0) ksize (sigma로 자동 계산)
+  - bilateral: cv2.bilateralFilter, sigmaSpace=sigmaColor
+  - median: cv2.medianBlur
+  - nlmeans: 컬러=fastNlMeansDenoisingColored, 그레이=fastNlMeansDenoising
+  - clahe: cv2.createCLAHE, 그레이 자동 변환
+  - otsu/adaptive_mean/adaptive_gauss: 그레이 자동 변환 → 이진화 출력
+  - erosion/dilation/opening/closing/tophat/blackhat: 그레이 자동 변환 → 형태학 연산
+  - canny: 그레이 자동 변환 → cv2.Canny
+  - sobel: 그레이 자동 변환 → |Gx|+|Gy| → uint8
+  - laplacian: 그레이 자동 변환 → convertScaleAbs → uint8
+- PipelineBlockLibrary 클래스: get_block, get_all_blocks, get_categories, get_blocks_by_category, get_matching_blocks (category 필터 지원)
+- 모듈 레벨 싱글톤: block_library = PipelineBlockLibrary()
+- LLM 호출 전혀 없음 (완전 규칙 기반)
+
+**발생 이슈:**
+- 없음 (63개 테스트 1회 실행에서 전체 GREEN)
+
+**생성/수정 파일:**
+- tests/test_pipeline_blocks.py (신규 — 63개 테스트)
+- agents/pipeline_blocks.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 559개 테스트 전체 GREEN (559 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 14: 63개 PASSED (test_pipeline_blocks.py)
+    - BlockDefinition 구조: 5 (name/category/params/apply/matches 필드)
+    - apply() color 유효성 (parametrize 21블록): 21
+    - apply() 엣지케이스: 4 (grayscale→2D, gray→2D, hsv_s+gray, otsu+color)
+    - matches() True: 15 (블록별 조건 True 검증)
+    - matches() False: 5 (경계값/반대 조건 False 검증)
+    - PipelineBlockLibrary 메서드: 7 (get_block, KeyError, 21개수, 5카테고리, by_category, matching, filter)
+    - 파라미터 공간: 5 (gaussian_fine sigma, bilateral keys, erosion iterations, canny t1/t2, grayscale empty)
+    - 싱글톤: 1
 
 ### Step 13: Image Analysis Agent (ImageDiagnosis 전체) (2026-04-24)
 
