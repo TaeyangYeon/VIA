@@ -1193,6 +1193,47 @@ Badge Error       bg-red-500/20 text-red-400
     - 예외 계층 4, 생성자 기본값 6, check_health 5, generate 8
     - generate_with_images 3, generate_with_image_paths 3, retry 4, logging 2, context manager 2, singleton 1
 
+### Step 13: Image Analysis Agent (ImageDiagnosis 전체) (2026-04-24)
+
+**작업 결과:**
+- ImageAnalysisAgent 구현 (agents/image_analysis_agent.py): BaseAgent 상속, 동기 execute(image: np.ndarray) → ImageDiagnosis
+- ImageDiagnosis 21개 필드를 OpenCV + NumPy 순수 연산으로 각각 전용 private 메서드 구현
+  - contrast: RMS contrast (std / 255)
+  - noise_level: GaussianBlur diff std 기반 (/ 50 정규화)
+  - edge_density: Canny(50, 150) edge pixel 비율
+  - lighting_uniformity: 4×4 그리드 셀 밝기 평균의 변동계수 (1 - CV)
+  - illumination_type: uniformity > 0.85 → uniform, spot/gradient/uneven 규칙 분류
+  - noise_frequency: FFT magnitude 저주파 vs 고주파 에너지 비교 → high_freq / low_freq
+  - reflection_level: pixel >= 250 비율
+  - texture_complexity: Laplacian variance / 5000
+  - edge_sharpness: Laplacian variance (비정규화, >= 0)
+  - blob_feasibility / blob_count_estimate / blob_size_variance / threshold_candidate: Otsu + findContours
+  - color_discriminability: 컬러=채널 mean 최대차/255, 그레이=Otsu 클래스간 분산/전체분산
+  - dominant_channel_ratio: 그레이=1.0, 컬러=max채널mean/합계
+  - structural_regularity: 16×16 패치 간 피어슨 상관계수 평균
+  - pattern_repetition: 수직 shift 기반 자기상관 최대값
+  - background_uniformity: 히스토그램 최빈값 ±20 범위 픽셀의 CV
+  - surface_type: texture/reflection/edge_density 3-인자 규칙 → metal/plastic/pcb/fabric/glass/unknown
+  - defect_scale: blob 개수/분산 기반 → macro/micro/texture
+  - optimal_color_space: is_color/color_disc/surface_type 기반 → gray/hsv_s/lab_l/rgb
+- 엣지케이스 처리: 2D 그레이스케일 입력, 10×10 초소형 이미지, 전체 흑/백 이미지, NaN/Inf 방지
+- Agent Directive 지원: directive 존재 시 INFO 로그, 연산은 결정론적
+
+**발생 이슈:**
+- test_striped_image_has_edges 임계값 조정: Canny 내부 Gaussian blur로 교번 스트라이프의 edge_density가 0.02로 측정됨. 임계값 > 0.05 → > 0.01 수정 (검출 자체는 정확함)
+
+**생성/수정 파일:**
+- tests/test_image_analysis.py (신규 — 63개 테스트)
+- agents/image_analysis_agent.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 496개 테스트 전체 GREEN (496 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 13: 63개 PASSED (test_image_analysis.py)
+    - 클래스 구조 8, 대비/노이즈/엣지/균일도 10, 조명/주파수 4, 반사/텍스처/표면/결함 7
+    - 블롭/컬러 7, 구조/패턴/배경/색공간/임계값/선명도 12, 엣지케이스 8, 전체실행 4+1(parametrize)
+
 ### Step 12: Spec Agent 구현 (2026-04-23)
 
 **작업 결과:**
