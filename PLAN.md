@@ -1283,6 +1283,41 @@ Badge Error       bg-red-500/20 text-red-400
     - 클래스 구조 5, 출력 유효성 6, PipelineBlock 필드 3, 블록 제약 7
     - 블록 순서 3, 다양성 3, 엣지케이스 4, Directive 4, 전략별 5, 한국어 이름 2
 
+### Step 16: Parameter Searcher + ProcessingQualityEvaluator (2026-04-25)
+
+**작업 결과:**
+- ProcessingQualityEvaluator 구현 (agents/processing_quality_evaluator.py): BaseAgent 비상속 유틸리티 클래스
+  - evaluate(original, processed) → dict (5개 키: contrast_preservation, edge_retention, noise_reduction_score, detail_preservation, overall_score)
+  - contrast: min(std_proc/std_orig, 1.0), edge: min(canny_proc/canny_orig, 1.0)
+  - noise: max(0, 1 - noise_proc/noise_orig), noise = std(img - GaussianBlur(img, σ=1.0))
+  - detail: matchTemplate(TM_CCOEFF_NORMED) 그리드 패치 평균
+  - overall: 0.3×contrast + 0.25×edge + 0.25×noise + 0.2×detail
+  - 원본 메트릭 == 0 → 1.0 반환 (엣지케이스), 컬러 자동 그레이 변환, 모든 값 [0,1] 클램핑
+- ParameterSearcher 구현 (agents/parameter_searcher.py): BaseAgent 상속, agent_name="parameter_searcher"
+  - execute(pipeline, image) → ProcessingPipeline (동기, LLM 미사용)
+  - itertools.product로 전체 파라미터 조합 → 500 초과 시 random.Random(42).sample(500)
+  - 블록별 최고 overall_score 파라미터 선택 → block.params 갱신
+  - 순차 최적화: 이전 블록 출력을 다음 블록 최적화 입력으로 연결
+  - apply() 예외 → WARNING 로그 + 스킵, 전체 실패 → block.params={} + ERROR 로그
+  - 전체 파이프라인 end-to-end 평가 후 pipeline.score 설정
+
+**발생 이슈:**
+- 테스트 fixture 문제: gradient 이미지는 Canny(50,150) 이하 → edge=0 → edge_retention=1.0. step image로 교체.
+- apply 호출 카운트: 검색 500 + best apply 1 + final eval 1 = 502. assertion ≤502로 수정.
+
+**생성/수정 파일:**
+- tests/test_parameter_searcher.py (신규 — 51개 테스트)
+- agents/processing_quality_evaluator.py (수정 — placeholder → 전체 구현)
+- agents/parameter_searcher.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 652개 테스트 전체 GREEN (652 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 16: 51개 PASSED (tests/test_parameter_searcher.py)
+    - ProcessingQualityEvaluator: import 3, output 4, contrast 5, edge 4, noise 5, detail 3, overall 2, color 2 = 28개
+    - ParameterSearcher: import 5, execute 2, params 5, sequential 2, directive 1, exception 3, limit 3, scoring 2 = 23개
+
 ### Step 12: Spec Agent 구현 (2026-04-23)
 
 **작업 결과:**

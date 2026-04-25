@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 15 완료 / Step 16 대기
+## 현재 진행 단계: Step 16 완료 / Step 17 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -22,7 +22,7 @@
 - [x] Step 13: Image Analysis Agent (ImageDiagnosis 전체) (2026-04-24)
 - [x] Step 14: Pipeline Block Library 구현 (2026-04-24)
 - [x] Step 15: Pipeline Composer 구현 (2026-04-25)
-- [ ] Step 16: Parameter Searcher + ProcessingQualityEvaluator
+- [x] Step 16: Parameter Searcher + ProcessingQualityEvaluator (2026-04-25)
 - [ ] Step 17: Vision Judge Agent (멀티모달 핵심)
 
 ## Phase 4: 검사 설계 레이어
@@ -598,6 +598,60 @@
     - Directive 지원: 4 (Blob 대문자, blob 소문자, 블롭 한국어 → morphology 우선; 제약 미위반)
     - 전략별: 5 (적극적=cs+2NR, 적응형=adaptive_th, 엣지=edge+no_th, 최소=1블록, 형태학=2mo)
     - 한국어 이름: 2 (5개 전략명 정확히 일치, 모든 이름 한국어 포함)
+
+### Step 16: Parameter Searcher + ProcessingQualityEvaluator (2026-04-25)
+
+**작업 결과:**
+- ProcessingQualityEvaluator 구현 (agents/processing_quality_evaluator.py): BaseAgent 비상속 유틸리티 클래스, evaluate(original, processed) → dict
+  - contrast_preservation: min(std(proc_gray) / std(orig_gray), 1.0), orig_std==0 → 1.0
+  - edge_retention: min(Canny(proc) / Canny(orig), 1.0), orig_edges==0 → 1.0
+  - noise_reduction_score: max(0, 1 - noise(proc) / noise(orig)), 노이즈=std(img - GaussianBlur(img, σ=1.0)), orig_noise==0 → 1.0
+  - detail_preservation: cv2.matchTemplate(proc, orig_patch, TM_CCOEFF_NORMED) 그리드 패치 평균, std≈0 패치 → 1.0 처리
+  - overall_score: 0.3×contrast + 0.25×edge + 0.25×noise + 0.2×detail
+  - 컬러 입력 자동 그레이스케일 변환, 모든 점수 [0.0, 1.0] 클램핑
+- ParameterSearcher 구현 (agents/parameter_searcher.py): BaseAgent 상속, agent_name="parameter_searcher"
+  - execute(pipeline, image) → ProcessingPipeline (동기, LLM 미사용)
+  - 각 블록별 itertools.product로 전체 파라미터 조합 생성
+  - 조합 수 > 500이면 random.Random(42).sample(all_combos, 500) 으로 재현 가능 샘플링
+  - 블록별 최고 overall_score 파라미터 선택 → block.params 갱신
+  - 순차 최적화: 이전 블록 출력 이미지를 다음 블록 최적화의 입력으로 사용
+  - apply() 예외 시 WARNING 로그, 해당 조합 스킵; 전체 실패 시 block.params={} + ERROR 로그
+  - 빈 params 검색 공간({}) 블록은 스킵 (조합 없음)
+  - 파이프라인 전체 end-to-end 실행 후 최종 evaluate로 pipeline.score 설정
+  - Agent Directive 지원: directive 존재 시 INFO 로그, 검색 결과는 결정론적
+
+**발생 이슈:**
+- test_heavily_blurred_loses_edges: 초기 fixture(gray_image)는 행별 gradient 이미지로 Canny(50,150) 임계값 이하여서 edge=0 → edge_retention=1.0 반환. 테스트를 step image(좌=0, 우=255)로 교체하여 원래 이미지에 선명한 엣지가 있음을 보장.
+- test_large_search_space_calls_apply_at_most_500: 검색 500회 + 최적 파라미터 적용 1회 + 최종 평가 1회 = 502회 호출. 테스트 assertion을 ≤502로 수정.
+
+**생성/수정 파일:**
+- tests/test_parameter_searcher.py (신규 — 51개 테스트)
+- agents/processing_quality_evaluator.py (수정 — placeholder → 전체 구현)
+- agents/parameter_searcher.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 652개 테스트 전체 GREEN (652 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 16: 51개 PASSED (tests/test_parameter_searcher.py)
+    - ProcessingQualityEvaluator (28개):
+      - import/구조 3 (importable, not BaseAgent, has evaluate)
+      - output 4 (returns dict, all keys, floats, range)
+      - contrast_preservation 5 (identical=1, zero_std=1, blurred<1, formula, clamped≤1)
+      - edge_retention 4 (identical=1, no_edges=1, heavily_blurred<1, formula)
+      - noise_reduction_score 5 (identical=0, zero_noise=1, blurring increases, white=1, clamped≥0)
+      - detail_preservation 3 (identical≥0.8, in_range, black_graceful)
+      - overall_score 2 (weighted average formula, in range)
+      - color handling 2 (no raise, color same as gray for identical)
+    - ParameterSearcher (23개):
+      - import/구조 5 (importable, BaseAgent, agent_name, directive, set_directive)
+      - execute 반환 2 (returns Pipeline, same object)
+      - 파라미터 선택 5 (params updated, sigma from space, empty skipped, score set, score in range)
+      - 순차 최적화 2 (two blocks, three blocks all params set)
+      - directive 1 (no change to results)
+      - 예외 처리 3 (all fail → empty, pipeline returns, partial failure → best remaining)
+      - 조합 제한 3 (≤502 calls, reproducible seed=42, small not sampled)
+      - 최종 스코어링 2 (full pipeline, empty pipeline)
 
 ### Step 11: Agent 기본 인터페이스 + 전체 모델 정의 (2026-04-23)
 
