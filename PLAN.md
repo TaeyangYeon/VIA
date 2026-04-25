@@ -1257,6 +1257,32 @@ Badge Error       bg-red-500/20 text-red-400
 - 559개 테스트 전체 GREEN (559 passed, 0 failed) — Ollama 통합 테스트 제외
   - Step 14: 63개 PASSED (test_pipeline_blocks.py)
 
+### Step 15: Pipeline Composer 구현 (2026-04-25)
+
+**작업 결과:**
+- PipelineComposer 구현 (agents/pipeline_composer.py): BaseAgent 상속, execute(diagnosis: ImageDiagnosis) → list[ProcessingPipeline] (동기, LLM 미사용)
+- block_library.get_matching_blocks() 활용 → 매칭 없는 카테고리는 전체 폴백
+- 5가지 전략: 적극적_노이즈제거, 적응형_임계값 (cs 없음), 엣지_검출, 최소_전처리, 형태학적_정제
+- 블록 순서 보장: color_space → noise_reduction → threshold → morphology → edge
+- 카테고리별 상한: cs≤1, nr≤2, th≤1, mo≤2, ed≤1; 파이프라인 내 중복 없음
+- Agent Directive: "Blob"/"blob"/"블롭" 포함 시 morphology 파이프라인 우선 정렬
+- 모든 PipelineBlock.params = {}, score = 0.0 (Step 16/17에서 채움)
+
+**발생 이슈:**
+- PCRO 프롬프트의 field명(pipeline_id, description, block_name, parameters)이 실제 models.py와 다름 — 파일 먼저 읽어 확인 (name/when_condition/params) 후 구현
+
+**생성/수정 파일:**
+- tests/test_pipeline_composer.py (신규 — 38개 테스트)
+- agents/pipeline_composer.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 601개 테스트 전체 GREEN (601 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 15: 42개 PASSED (tests/test_pipeline_composer.py)
+    - 클래스 구조 5, 출력 유효성 6, PipelineBlock 필드 3, 블록 제약 7
+    - 블록 순서 3, 다양성 3, 엣지케이스 4, Directive 4, 전략별 5, 한국어 이름 2
+
 ### Step 12: Spec Agent 구현 (2026-04-23)
 
 **작업 결과:**

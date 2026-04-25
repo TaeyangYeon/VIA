@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 14 완료 / Step 15 대기
+## 현재 진행 단계: Step 15 완료 / Step 16 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -21,7 +21,7 @@
 - [x] Step 12: Spec Agent 구현 (2026-04-23)
 - [x] Step 13: Image Analysis Agent (ImageDiagnosis 전체) (2026-04-24)
 - [x] Step 14: Pipeline Block Library 구현 (2026-04-24)
-- [ ] Step 15: Pipeline Composer 구현
+- [x] Step 15: Pipeline Composer 구현 (2026-04-25)
 - [ ] Step 16: Parameter Searcher + ProcessingQualityEvaluator
 - [ ] Step 17: Vision Judge Agent (멀티모달 핵심)
 
@@ -552,6 +552,52 @@
     - 구조/패턴/배경/색공간/임계값/선명도: 12 (structural 4, colorspace 2, threshold 2, sharpness 2, bg 2)
     - 엣지케이스: 8 (grayscale, tiny, black, white, all_floats_finite×4, tiny_finite)
     - 전체 실행: 4 (색상이미지, 21필드타입, directive, noisy)
+
+### Step 15: Pipeline Composer 구현 (2026-04-25)
+
+**작업 결과:**
+- PipelineComposer 구현 (agents/pipeline_composer.py): BaseAgent 상속, execute(diagnosis: ImageDiagnosis) → list[ProcessingPipeline] (동기, LLM 미사용)
+- block_library.get_matching_blocks() 활용하여 진단 결과 기반 적합 블록 선택
+- 매칭 블록 없는 카테고리는 해당 카테고리 전체 블록으로 폴백 (항상 정확히 5개 파이프라인 보장)
+- 5가지 다양한 전략으로 파이프라인 구성:
+  1. 적극적_노이즈제거_파이프라인: cs(1) + nr(:2) + th(0) + mo(0) — 적극적 노이즈 제거 후 이진화
+  2. 적응형_임계값_파이프라인: (cs 없음) + nr(0) + adaptive_th + mo(1) — 적응형 임계값 중심
+  3. 엣지_검출_파이프라인: cs(0) + nr(0) + ed(0) — 엣지 검출 전용
+  4. 최소_전처리_파이프라인: th(0) 만 — 최소 전처리
+  5. 형태학적_정제_파이프라인: cs(0) + nr(0) + otsu + mo(:2) — 형태학 연산 중심
+- 블록 배열 순서 보장: color_space → noise_reduction → threshold → morphology → edge
+- 카테고리별 상한 강제: color_space ≤1, noise_reduction ≤2, threshold ≤1, morphology ≤2, edge ≤1
+- 파이프라인 내 블록 중복 없음
+- 전략 2는 cs 미사용, 전략 4는 cs+nr 미사용 → 5개 전략 간 블록셋 항상 다름 (다양성 보장)
+- 적응형 임계값 선호: adaptive_mean/adaptive_gauss 우선, 없으면 th[0] 폴백
+- Otsu 선호: 형태학 파이프라인에서 otsu 우선, 없으면 th[0] 폴백
+- Agent Directive 지원: "Blob"/"blob"/"블롭" 포함 시 morphology 블록이 있는 파이프라인 우선 정렬
+- 모든 PipelineBlock.params = {} (Step 16 Parameter Searcher에서 채움)
+- 모든 파이프라인 이름은 한국어 (적극적_노이즈제거_파이프라인 등)
+- ProcessingPipeline.score = 0.0 초기화 (Step 17 Vision Judge에서 채점)
+
+**발생 이슈:**
+- PCRO 프롬프트에서 ProcessingPipeline 필드명을 pipeline_id/description으로 기술했으나, 실제 models.py에는 name/score 만 존재 (description 없음). 또한 PipelineBlock 필드명은 block_name/parameters가 아닌 name/when_condition/params. 항상 모델 파일을 먼저 읽어 확인한 후 구현함.
+
+**생성/수정 파일:**
+- tests/test_pipeline_composer.py (신규 — 42개 테스트)
+- agents/pipeline_composer.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 601개 테스트 전체 GREEN (601 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 15: 42개 PASSED (tests/test_pipeline_composer.py)
+    - 클래스 구조: 5 (BaseAgent 상속, agent_name, 동기 execute, directive 생성자, set_directive)
+    - 출력 유효성: 6 (list+타입, 정확히 5개, 여러 진단에서 5개, 이름 비공백+고유, score=0.0, 최소 1블록)
+    - PipelineBlock 필드: 3 (params=빈dict, name 비공백, when_condition 비공백)
+    - 블록 제약: 7 (라이브러리 내 name, max 1 cs, max 2 nr, max 1 th, max 2 mo, max 1 ed, 중복없음)
+    - 블록 순서: 3 (표준/고노이즈/비균일조명 진단별 category order 검증)
+    - 파이프라인 다양성: 3 (identical 아님, edge 포함, morphology 포함)
+    - 엣지케이스: 4 (고노이즈 5개, 저대비 5개, 최소매칭 5개, 고대비균일 5개)
+    - Directive 지원: 4 (Blob 대문자, blob 소문자, 블롭 한국어 → morphology 우선; 제약 미위반)
+    - 전략별: 5 (적극적=cs+2NR, 적응형=adaptive_th, 엣지=edge+no_th, 최소=1블록, 형태학=2mo)
+    - 한국어 이름: 2 (5개 전략명 정확히 일치, 모든 이름 한국어 포함)
 
 ### Step 11: Agent 기본 인터페이스 + 전체 모델 정의 (2026-04-23)
 
