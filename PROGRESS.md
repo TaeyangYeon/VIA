@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 17 완료 / Step 18 대기
+## 현재 진행 단계: Step 18 완료 / Step 19 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -26,7 +26,7 @@
 - [x] Step 17: Vision Judge Agent (멀티모달 핵심) (2026-04-26)
 
 ## Phase 4: 검사 설계 레이어
-- [ ] Step 18: Inspection Plan Agent
+- [x] Step 18: Inspection Plan Agent (2026-04-26)
 - [ ] Step 19: Algorithm Selector (결정 트리)
 - [ ] Step 20: Algorithm Coder Agent (Inspection)
 - [ ] Step 21: Algorithm Coder Agent (Align)
@@ -724,3 +724,41 @@
     - 이미지 인코딩 (3개): 그레이스케일 PNG magic bytes 검증, 컬러 PNG magic bytes 검증, data URI 접두어 없음
     - Directive 지원 (2개): directive 프롬프트에 포함, directive 없으면 "directive" 미포함
     - 에러 처리 (3개): OllamaError 전파, OllamaConnectionError 전파, 빈 응답 재시도 후 성공
+
+### Step 18: Inspection Plan Agent 구현 (2026-04-26)
+
+**작업 결과:**
+- INSPECTION_PLAN_SYSTEM_PROMPT 상수 구현 (agents/prompts/inspection_plan_prompt.py): Gemma4가 산업용 비전 검사 플래너로 동작하도록 지시, JSON 출력 포맷(items 배열, 각 item에 id/name/purpose/method/depends_on/safety_role/success_criteria), AlgorithmCategory 값(BLOB/COLOR_FILTER/EDGE_DETECTION/TEMPLATE_MATCHING) 명시, 자유 설계 원칙(고정 템플릿 없음) 및 의존성 순서 규칙 포함
+- build_inspection_plan_prompt(purpose, image_diagnosis_summary, directive=None) 빌더 함수 구현: purpose + image_diagnosis_summary 포함, directive 있으면 "Additional directive:" 형식으로 append
+- InspectionPlanAgent 전체 구현 (agents/inspection_plan_agent.py): BaseAgent 상속, agent_name="inspection_plan"
+  - execute(purpose, image_diagnosis_summary) → InspectionPlan (async)
+  - ollama_client.generate(prompt, system=INSPECTION_PLAN_SYSTEM_PROMPT) 호출
+  - JSON 파싱 강건성: markdown code fence(```json ... ```) 자동 제거, 파싱 실패/빈 items 시 1회 재시도, 2회 모두 실패 시 ValueError 발생
+  - method 검증: AlgorithmCategory 값과 정확히 일치해야 하며, 불일치 시 WARNING 로그 + BLOB 기본값 설정
+  - depends_on 위상 검증: 각 item의 depends_on은 이전 item의 id만 참조 가능; 자기 참조/전방 참조/미존재 id 자동 제거 + WARNING 로그
+  - OllamaError 계열 예외는 그대로 전파 (재시도 없음)
+  - 성공 시 INFO 로그(item 개수), 최종 실패 시 ERROR 로그
+  - InspectionItem 필드: id(int), name(str), purpose(str), method(AlgorithmCategory), depends_on(list[int]), safety_role(str), success_criteria(str)
+
+**발생 이슈:**
+- PCRO 프롬프트에 id가 str, method 값이 소문자(blob 등)로 기재되었으나, agents/models.py 실제 확인 시 id=int, AlgorithmCategory 값=대문자(BLOB 등)임을 확인 → 실제 코드 기준으로 구현
+
+**생성/수정 파일:**
+- tests/test_inspection_plan.py (신규 — 44개 테스트)
+- agents/prompts/inspection_plan_prompt.py (신규)
+- agents/inspection_plan_agent.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 733개 테스트 전체 GREEN (733 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 18: 44개 PASSED (tests/test_inspection_plan.py)
+    - 시스템 프롬프트 (10개): 문자열 타입, 비어있지 않음, 길이>100, "inspection" 포함, "items" 포함, "depends_on" 포함, "safety_role" 포함, "method" 포함, JSON 지시 포함, 4개 AlgorithmCategory 값 포함
+    - 빌더 함수 (5개): purpose 포함, diagnosis_summary 포함, directive 있을 시 포함, directive 있을 시 길이 증가, directive 없을 시 미포함
+    - 클래스 구조 (5개): BaseAgent 상속, agent_name="inspection_plan", execute 코루틴, directive 생성자, set_directive
+    - execute 핵심 (8개): InspectionPlan 반환, InspectionItem 타입, 필드 타입(id=int/name=str/method=AlgorithmCategory/depends_on=list), system 프롬프트로 generate 호출, purpose/summary/directive 프롬프트 포함, 복수 items + depends_on
+    - 의존성 검증 (4개): 유효 depends_on 통과, 미존재 참조 제거+WARNING, 자기 참조 제거, 전방 참조 제거
+    - method 검증 (3개): 4가지 유효 값 통과, 잘못된 값 BLOB 기본값+WARNING, 소문자 BLOB 기본값
+    - JSON 파싱 강건성 (4개): markdown code fence 처리, plain JSON, 1회 실패 후 재시도 성공, 2회 실패 ValueError
+    - 에러 처리 (3개): OllamaError 전파, OllamaConnectionError 전파, 빈 items 재시도
+    - 엣지 케이스 (2개): 단일 item(의존성 없음), 복잡한 5단계 의존성 체인

@@ -1318,6 +1318,37 @@ Badge Error       bg-red-500/20 text-red-400
     - ProcessingQualityEvaluator: import 3, output 4, contrast 5, edge 4, noise 5, detail 3, overall 2, color 2 = 28개
     - ParameterSearcher: import 5, execute 2, params 5, sequential 2, directive 1, exception 3, limit 3, scoring 2 = 23개
 
+### Step 18: Inspection Plan Agent 구현 (2026-04-26)
+
+**작업 결과:**
+- INSPECTION_PLAN_SYSTEM_PROMPT 상수 구현 (agents/prompts/inspection_plan_prompt.py): Gemma4가 산업용 비전 검사 플래너로 동작하도록 지시, JSON 출력 포맷(items 배열, 각 item에 id/name/purpose/method/depends_on/safety_role/success_criteria), AlgorithmCategory 값(BLOB/COLOR_FILTER/EDGE_DETECTION/TEMPLATE_MATCHING) 명시, 자유 설계 원칙(고정 템플릿 없음) 및 의존성 순서 규칙 포함
+- build_inspection_plan_prompt(purpose, image_diagnosis_summary, directive=None) 빌더 함수 구현: purpose + image_diagnosis_summary 포함, directive 있으면 "Additional directive:" 형식으로 append
+- InspectionPlanAgent 전체 구현 (agents/inspection_plan_agent.py): BaseAgent 상속, agent_name="inspection_plan"
+  - execute(purpose, image_diagnosis_summary) → InspectionPlan (async)
+  - ollama_client.generate(prompt, system=INSPECTION_PLAN_SYSTEM_PROMPT) 호출
+  - JSON 파싱 강건성: markdown code fence(```json ... ```) 자동 제거, 파싱 실패/빈 items 시 1회 재시도, 2회 모두 실패 시 ValueError 발생
+  - method 검증: AlgorithmCategory 값과 정확히 일치해야 하며, 불일치 시 WARNING 로그 + BLOB 기본값 설정
+  - depends_on 위상 검증: 각 item의 depends_on은 이전 item의 id만 참조 가능; 자기 참조/전방 참조/미존재 id 자동 제거 + WARNING 로그
+  - OllamaError 계열 예외는 그대로 전파 (재시도 없음)
+  - 성공 시 INFO 로그(item 개수), 최종 실패 시 ERROR 로그
+
+**발생 이슈:**
+- PCRO 프롬프트에 id가 str, method 값이 소문자(blob 등)로 기재되었으나, agents/models.py 실제 확인 시 id=int, AlgorithmCategory 값=대문자(BLOB 등)임을 확인 → 실제 코드 기준으로 구현
+
+**생성/수정 파일:**
+- tests/test_inspection_plan.py (신규 — 44개 테스트)
+- agents/prompts/inspection_plan_prompt.py (신규)
+- agents/inspection_plan_agent.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 733개 테스트 전체 GREEN (733 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 18: 44개 PASSED (tests/test_inspection_plan.py)
+    - 시스템 프롬프트 10개, 빌더 함수 5개, 클래스 구조 5개
+    - execute 핵심 8개, 의존성 검증 4개, method 검증 3개
+    - JSON 파싱 강건성 4개, 에러 처리 3개, 엣지 케이스 2개
+
 ### Step 17: Vision Judge Agent (멀티모달 핵심) (2026-04-26)
 
 **작업 결과:**
