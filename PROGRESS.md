@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 16 완료 / Step 17 대기
+## 현재 진행 단계: Step 17 완료 / Step 18 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -23,7 +23,7 @@
 - [x] Step 14: Pipeline Block Library 구현 (2026-04-24)
 - [x] Step 15: Pipeline Composer 구현 (2026-04-25)
 - [x] Step 16: Parameter Searcher + ProcessingQualityEvaluator (2026-04-25)
-- [ ] Step 17: Vision Judge Agent (멀티모달 핵심)
+- [x] Step 17: Vision Judge Agent (멀티모달 핵심) (2026-04-26)
 
 ## Phase 4: 검사 설계 레이어
 - [ ] Step 18: Inspection Plan Agent
@@ -686,3 +686,41 @@
     - Enum: InspectionMode 3, AlgorithmCategory 3, FailureReason 2, DecisionType 2, DefectScale 2, IlluminationType 2, NoiseFrequency 2
     - Dataclass: ImageDiagnosis 5, PipelineBlock 3, ProcessingPipeline 4, JudgementResult 3, InspectionItem 3, InspectionPlan 2, SpecResult 2, TestMetrics 3, ItemTestResult 3, EvaluationResult 4, FeedbackAction 3, DecisionResult 2, AgentDirectives 5, ExecutionProgress 2, AlgorithmResult 2
     - BaseAgent: abstract 3, properties 5, logging 3
+
+### Step 17: Vision Judge Agent (멀티모달 핵심) (2026-04-26)
+
+**작업 결과:**
+- VISION_JUDGE_SYSTEM_PROMPT 상수 구현 (agents/prompts/vision_judge_prompt.py): Gemma4가 비전 처리 품질 심판으로 동작하도록 지시, 5개 JSON 키(visibility_score, separability_score, measurability_score, problems, next_suggestion) 및 정의 포함
+- build_vision_judge_prompt(purpose, pipeline_name, directive=None) 빌더 함수 구현: purpose + pipeline_name 포함, directive 있으면 추가 안내로 append
+- VisionJudgeAgent 전체 구현 (agents/vision_judge_agent.py): BaseAgent 상속, agent_name="vision_judge"
+  - execute(original_image, processed_image, purpose, pipeline_name) → JudgementResult (async)
+  - cv2.imencode → base64.b64encode → decode('utf-8') 방식으로 양쪽 이미지 PNG 인코딩 (data URI 접두어 없음)
+  - ollama_client.generate_with_images(prompt, [orig_b64, proc_b64], system=SYSTEM_PROMPT) 호출
+  - JSON 파싱 강건성: markdown code fence(```json ... ```) 자동 제거, 빈 응답/파싱 실패 시 1회 재시도, 2회 모두 실패 시 ValueError 발생
+  - 점수 클램핑: visibility/separability/measurability_score 모두 [0.0, 1.0] 강제
+  - OllamaError 계열 예외는 그대로 전파 (재시도 없음)
+  - 성공 시 INFO 로그, 최종 실패 시 ERROR 로그
+
+**발생 이슈:**
+- 없음 (37개 테스트 1회 실행에서 전체 GREEN)
+
+**생성/수정 파일:**
+- tests/test_vision_judge.py (신규 — 37개 테스트)
+- agents/prompts/vision_judge_prompt.py (신규)
+- agents/vision_judge_agent.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 689개 테스트 전체 GREEN (689 passed, 9 deselected, 0 failed) — Ollama 통합 테스트 제외
+  - Step 17: 37개 PASSED (tests/test_vision_judge.py)
+    - 프롬프트 모듈 (12개):
+      - VISION_JUDGE_SYSTEM_PROMPT 존재/길이, judge/quality/vision 포함, JSON 지시 포함, 5개 JSON 키 포함
+      - build_vision_judge_prompt: purpose/pipeline_name 포함, directive 없을 시 미포함, directive 있을 시 append, 길이 증가, JSON 포맷 지시
+    - 클래스 구조 (5개): BaseAgent 상속, agent_name="vision_judge", execute 코루틴, directive 생성자, set_directive
+    - execute 핵심 (5개): JudgementResult 반환, 점수 [0,1] 범위, problems=list[str], next_suggestion=str, 이미지 2개 전달
+    - JSON 파싱 강건성 (4개): markdown code fence 처리, plain JSON, 1회 실패 후 재시도 성공, 2회 실패 ValueError
+    - 점수 클램핑 (3개): >1.0 → 1.0, <0.0 → 0.0, 음수 큰값 → 0.0
+    - 이미지 인코딩 (3개): 그레이스케일 PNG magic bytes 검증, 컬러 PNG magic bytes 검증, data URI 접두어 없음
+    - Directive 지원 (2개): directive 프롬프트에 포함, directive 없으면 "directive" 미포함
+    - 에러 처리 (3개): OllamaError 전파, OllamaConnectionError 전파, 빈 응답 재시도 후 성공

@@ -1318,6 +1318,37 @@ Badge Error       bg-red-500/20 text-red-400
     - ProcessingQualityEvaluator: import 3, output 4, contrast 5, edge 4, noise 5, detail 3, overall 2, color 2 = 28개
     - ParameterSearcher: import 5, execute 2, params 5, sequential 2, directive 1, exception 3, limit 3, scoring 2 = 23개
 
+### Step 17: Vision Judge Agent (멀티모달 핵심) (2026-04-26)
+
+**작업 결과:**
+- VISION_JUDGE_SYSTEM_PROMPT 상수 구현 (agents/prompts/vision_judge_prompt.py): Gemma4가 비전 처리 품질 심판으로 동작하도록 지시, 5개 JSON 키(visibility_score, separability_score, measurability_score, problems, next_suggestion) 및 정의 포함
+- build_vision_judge_prompt(purpose, pipeline_name, directive=None) 빌더 함수 구현: purpose + pipeline_name 포함, directive 있으면 추가 안내로 append
+- VisionJudgeAgent 전체 구현 (agents/vision_judge_agent.py): BaseAgent 상속, agent_name="vision_judge"
+  - execute(original_image, processed_image, purpose, pipeline_name) → JudgementResult (async)
+  - cv2.imencode → base64.b64encode → decode('utf-8') 방식으로 양쪽 이미지 PNG 인코딩 (data URI 접두어 없음)
+  - ollama_client.generate_with_images(prompt, [orig_b64, proc_b64], system=SYSTEM_PROMPT) 호출
+  - JSON 파싱 강건성: markdown code fence 자동 제거, 빈 응답/파싱 실패 시 1회 재시도, 2회 모두 실패 시 ValueError 발생
+  - 점수 클램핑: visibility/separability/measurability_score 모두 [0.0, 1.0] 강제
+  - OllamaError 계열 예외는 그대로 전파 (재시도 없음)
+  - 성공 시 INFO 로그, 최종 실패 시 ERROR 로그
+
+**발생 이슈:**
+- 없음 (37개 테스트 1회 실행에서 전체 GREEN)
+
+**생성/수정 파일:**
+- tests/test_vision_judge.py (신규 — 37개 테스트)
+- agents/prompts/vision_judge_prompt.py (신규)
+- agents/vision_judge_agent.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 689개 테스트 전체 GREEN (689 passed, 9 deselected, 0 failed) — Ollama 통합 테스트 제외
+  - Step 17: 37개 PASSED (tests/test_vision_judge.py)
+    - 프롬프트 모듈 12개, 클래스 구조 5개, execute 핵심 5개
+    - JSON 파싱 강건성 4개, 점수 클램핑 3개, 이미지 인코딩 3개
+    - Directive 지원 2개, 에러 처리 3개
+
 ### Step 12: Spec Agent 구현 (2026-04-23)
 
 **작업 결과:**
