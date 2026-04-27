@@ -1415,6 +1415,36 @@ Badge Error       bg-red-500/20 text-red-400
     - JSON 파싱 강건성 4개, 점수 클램핑 3개, 이미지 인코딩 3개
     - Directive 지원 2개, 에러 처리 3개
 
+### Step 20: Algorithm Coder Agent (Inspection) 구현 (2026-04-27)
+
+**작업 결과:**
+- CODER_INSPECTION_SYSTEM_PROMPT 상수 구현 (agents/prompts/coder_inspection_prompt.py): inspect_item(image: np.ndarray) -> dict 시그니처 강제, {"result": "OK"/"NG", "details": {...}} 반환 형식, cv2/numpy 전용 제약, Korean explanation 요구
+- build_coder_inspection_prompt(item, category, pipeline_summary, directive=None) 빌더 함수 구현: item 전 필드 포함, directive 있으면 "Additional directive:" 형식으로 append
+- AlgorithmCoderInspection 전체 구현 (agents/algorithm_coder_inspection.py): BaseAgent 상속, agent_name="algorithm_coder_inspection"
+  - execute(category, pipeline, plan) → AlgorithmResult (async)
+  - pipeline.blocks에서 pipeline_summary 생성 (block name + params)
+  - items 순회: 각 item별 generate → JSON 파싱 → 코드/설명 수집
+  - 전체 코드 "\n\n".join → AlgorithmResult.code, 설명 "[name] explanation" → AlgorithmResult.explanation
+  - JSON 파싱 강건성: markdown code fence 제거, 파싱/빈 응답 실패 시 1회 재시도, 2회 실패 ValueError
+  - OllamaError 계열 예외 그대로 전파
+
+**발생 이슈:**
+- 없음 (46개 테스트 1회 실행에서 전체 GREEN)
+
+**생성/수정 파일:**
+- tests/test_coder_inspection.py (신규 — 46개 테스트)
+- agents/prompts/coder_inspection_prompt.py (신규)
+- agents/algorithm_coder_inspection.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 819개 테스트 전체 GREEN (819 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 20: 46개 PASSED (tests/test_coder_inspection.py)
+    - 시스템 프롬프트 10개, 빌더 함수 10개, 클래스 구조 5개
+    - execute 핵심 9개, JSON 파싱 강건성 4개, 에러 처리 3개
+    - Directive 2개, 엣지 케이스 3개
+
 ### Step 12: Spec Agent 구현 (2026-04-23)
 
 **작업 결과:**

@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 19 완료 / Step 20 대기
+## 현재 진행 단계: Step 20 완료 / Step 21 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -28,7 +28,7 @@
 ## Phase 4: 검사 설계 레이어
 - [x] Step 18: Inspection Plan Agent (2026-04-26)
 - [x] Step 19: Algorithm Selector (결정 트리) (2026-04-27)
-- [ ] Step 20: Algorithm Coder Agent (Inspection)
+- [x] Step 20: Algorithm Coder Agent (Inspection) (2026-04-27)
 - [ ] Step 21: Algorithm Coder Agent (Align)
 - [ ] Step 22: Test Agent (Inspection, 항목별)
 - [ ] Step 23: Test Agent (Align)
@@ -797,3 +797,40 @@
     - JSON 파싱 강건성 (4개): markdown code fence 처리, plain JSON, 1회 실패 후 재시도 성공, 2회 실패 ValueError
     - 에러 처리 (3개): OllamaError 전파, OllamaConnectionError 전파, 빈 items 재시도
     - 엣지 케이스 (2개): 단일 item(의존성 없음), 복잡한 5단계 의존성 체인
+
+### Step 20: Algorithm Coder Agent (Inspection) 구현 (2026-04-27)
+
+**작업 결과:**
+- CODER_INSPECTION_SYSTEM_PROMPT 상수 구현 (agents/prompts/coder_inspection_prompt.py): Gemma4가 산업용 OpenCV 코드 생성기로 동작하도록 지시, inspect_item(image: np.ndarray) -> dict 시그니처 강제, {"result": "OK"/"NG", "details": {...}} 반환 형식 명시, cv2/numpy 전용 제약, 파이프라인 처리 단계 반영 지시, Korean explanation 요구
+- build_coder_inspection_prompt(item, category, pipeline_summary, directive=None) 빌더 함수 구현: item.name/purpose/method/success_criteria 포함, category 포함, pipeline_summary 포함, directive 있으면 "Additional directive:" 형식으로 append
+- AlgorithmCoderInspection 전체 구현 (agents/algorithm_coder_inspection.py): BaseAgent 상속, agent_name="algorithm_coder_inspection"
+  - execute(category, pipeline, plan) → AlgorithmResult (async)
+  - pipeline.blocks에서 pipeline_summary 문자열 생성 (block name + params, 빈 블록 "(no preprocessing)")
+  - InspectionPlan.items 순회: 각 item별 build_coder_inspection_prompt → ollama_client.generate → JSON 파싱
+  - JSON 파싱 강건성: markdown code fence 자동 제거, 파싱/빈 응답 실패 시 1회 재시도, 2회 실패 시 ValueError 발생
+  - 모든 item 코드를 "\n\n".join으로 결합 → AlgorithmResult.code
+  - 모든 item 설명을 "[item.name] explanation" 형식으로 결합 → AlgorithmResult.explanation
+  - OllamaError 계열 예외는 그대로 전파 (재시도 없음)
+  - 성공 시 INFO 로그(item 개수), 파싱 최종 실패 시 ERROR 로그
+
+**발생 이슈:**
+- 없음 (46개 테스트 1회 실행에서 전체 GREEN)
+
+**생성/수정 파일:**
+- tests/test_coder_inspection.py (신규 — 46개 테스트)
+- agents/prompts/coder_inspection_prompt.py (신규)
+- agents/algorithm_coder_inspection.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 819개 테스트 전체 GREEN (819 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 20: 46개 PASSED (tests/test_coder_inspection.py)
+    - 시스템 프롬프트 (10개): 존재/비공백/string, OpenCV/cv2 포함, inspect 포함, code 포함, JSON 포함, inspect_item 함수명 포함, OK/NG 포함, explanation 포함
+    - 빌더 함수 (10개): item.name/purpose/method/success_criteria 포함, category 포함, pipeline_summary 포함, directive 포함/미포함, string 반환, 비공백
+    - 클래스 구조 (5개): BaseAgent 상속, agent_name 정확, execute 코루틴, directive 생성자, set_directive
+    - execute 핵심 (9개): AlgorithmResult 반환, category 정확, pipeline 저장, item별 generate 1회씩, code/explanation string, Korean explanation, system prompt 전달, block name 포함
+    - JSON 파싱 강건성 (4개): markdown code fence 처리, plain JSON, 1회 실패 재시도 성공, 2회 실패 ValueError
+    - 에러 처리 (3개): OllamaError 전파, OllamaConnectionError 전파, 빈 응답 재시도
+    - Directive 테스트 (2개): directive 포함 확인, no-directive 미포함 확인
+    - 엣지 케이스 (3개): 단일 item, 5개 item 전체 코드 생성, 빈 pipeline blocks
