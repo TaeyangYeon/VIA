@@ -1318,6 +1318,41 @@ Badge Error       bg-red-500/20 text-red-400
     - ProcessingQualityEvaluator: import 3, output 4, contrast 5, edge 4, noise 5, detail 3, overall 2, color 2 = 28개
     - ParameterSearcher: import 5, execute 2, params 5, sequential 2, directive 1, exception 3, limit 3, scoring 2 = 23개
 
+### Step 19: Algorithm Selector 구현 (결정 트리) (2026-04-27)
+
+**작업 결과:**
+- AlgorithmSelector 클래스 구현 (agents/algorithm_selector.py): BaseAgent 상속, agent_name="algorithm_selector"
+  - execute(diagnosis: ImageDiagnosis) → AlgorithmCategory (동기 메서드, async 없음, LLM 없음)
+  - 결정 트리 (PLAN.md Section 2.4.3 기준, 조건 순서 엄격 준수):
+    1. contrast > 0.4 AND blob_feasibility > 0.6 → BLOB
+    2. color_discriminability > 0.5 → COLOR_FILTER
+    3. edge_density > 0.3 AND structural_regularity > 0.5 → EDGE_DETECTION
+    4. pattern_repetition > 0.7 → TEMPLATE_MATCHING
+    5. 기본 fallback → BLOB
+  - directive는 INFO 로그에만 기록, 결정 트리 로직에 영향 없음
+  - 선택된 카테고리와 매칭된 조건 이유를 INFO 로그로 출력
+
+**발생 이슈:**
+- 경계값 테스트 중 `test_blob_contrast_at_exact_threshold_does_not_match` 초안의 assertion 로직 오류 발견 (BLOB branch 미매칭 시 default fallback도 BLOB을 반환하므로 단순 != BLOB으로 검증 불가) → COLOR_FILTER 조건을 추가해 "BLOB branch가 스킵되면 COLOR_FILTER가 이긴다"는 방식으로 테스트 재작성
+
+**생성/수정 파일:**
+- tests/test_algorithm_selector.py (신규 — 40개 테스트)
+- agents/algorithm_selector.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 773개 테스트 전체 GREEN (773 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 19: 40개 PASSED (tests/test_algorithm_selector.py)
+    - 클래스 구조 (7개): BaseAgent 상속, agent_name, directive 없음(기본), directive 저장, set_directive, execute 동기 반환, execute 코루틴 아님
+    - LLM 없음 검증 (2개): ollama import 없음, ollama_client 속성 없음
+    - 결정 트리 happy path (5개): BLOB, COLOR_FILTER, EDGE_DETECTION, TEMPLATE_MATCHING, default BLOB
+    - 경계값 (11개): 각 임계값 정확히 equal(not >), just above, BLOB 양쪽 조건 독립 검증 등
+    - 우선순위/순서 (6개): BLOB > COLOR_FILTER, BLOB > EDGE_DETECTION, BLOB > TEMPLATE_MATCHING, COLOR_FILTER > EDGE_DETECTION, COLOR_FILTER > TEMPLATE_MATCHING, EDGE_DETECTION > TEMPLATE_MATCHING
+    - 엣지 케이스 (4개): 전체 0, 전체 최대, BLOB 단일 조건 충족, EDGE_DETECTION 단일 조건 충족
+    - 결정론 (2개): 동일 입력 10회 동일 결과, 다른 인스턴스 동일 결과
+    - Directive 독립성 (3개): directive 있어도 결과 동일, directive override 시도 무시, set_directive 후 결과 동일
+
 ### Step 18: Inspection Plan Agent 구현 (2026-04-26)
 
 **작업 결과:**

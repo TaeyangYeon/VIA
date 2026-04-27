@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 18 완료 / Step 19 대기
+## 현재 진행 단계: Step 19 완료 / Step 20 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -27,7 +27,7 @@
 
 ## Phase 4: 검사 설계 레이어
 - [x] Step 18: Inspection Plan Agent (2026-04-26)
-- [ ] Step 19: Algorithm Selector (결정 트리)
+- [x] Step 19: Algorithm Selector (결정 트리) (2026-04-27)
 - [ ] Step 20: Algorithm Coder Agent (Inspection)
 - [ ] Step 21: Algorithm Coder Agent (Align)
 - [ ] Step 22: Test Agent (Inspection, 항목별)
@@ -724,6 +724,41 @@
     - 이미지 인코딩 (3개): 그레이스케일 PNG magic bytes 검증, 컬러 PNG magic bytes 검증, data URI 접두어 없음
     - Directive 지원 (2개): directive 프롬프트에 포함, directive 없으면 "directive" 미포함
     - 에러 처리 (3개): OllamaError 전파, OllamaConnectionError 전파, 빈 응답 재시도 후 성공
+
+### Step 19: Algorithm Selector 구현 (결정 트리) (2026-04-27)
+
+**작업 결과:**
+- AlgorithmSelector 클래스 구현 (agents/algorithm_selector.py): BaseAgent 상속, agent_name="algorithm_selector"
+  - execute(diagnosis: ImageDiagnosis) → AlgorithmCategory (동기 메서드, async 없음, LLM 없음)
+  - 결정 트리 (PLAN.md Section 2.4.3 기준, 조건 순서 엄격 준수):
+    1. contrast > 0.4 AND blob_feasibility > 0.6 → BLOB
+    2. color_discriminability > 0.5 → COLOR_FILTER
+    3. edge_density > 0.3 AND structural_regularity > 0.5 → EDGE_DETECTION
+    4. pattern_repetition > 0.7 → TEMPLATE_MATCHING
+    5. 기본 fallback → BLOB
+  - directive는 INFO 로그에만 기록, 결정 트리 로직에 영향 없음
+  - 선택된 카테고리와 매칭된 조건 이유를 INFO 로그로 출력
+
+**발생 이슈:**
+- 경계값 테스트 중 `test_blob_contrast_at_exact_threshold_does_not_match` 초안의 assertion 로직 오류 발견 (BLOB branch 미매칭 시 default fallback도 BLOB을 반환하므로 단순 != BLOB으로 검증 불가) → COLOR_FILTER 조건을 추가해 "BLOB branch가 스킵되면 COLOR_FILTER가 이긴다"는 방식으로 테스트 재작성
+
+**생성/수정 파일:**
+- tests/test_algorithm_selector.py (신규 — 40개 테스트)
+- agents/algorithm_selector.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 773개 테스트 전체 GREEN (773 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 19: 40개 PASSED (tests/test_algorithm_selector.py)
+    - 클래스 구조 (7개): BaseAgent 상속, agent_name, directive 없음(기본), directive 저장, set_directive, execute 동기 반환, execute 코루틴 아님
+    - LLM 없음 검증 (2개): ollama import 없음, ollama_client 속성 없음
+    - 결정 트리 happy path (5개): BLOB, COLOR_FILTER, EDGE_DETECTION, TEMPLATE_MATCHING, default BLOB
+    - 경계값 (11개): 각 임계값 정확히 equal(not >), just above, BLOB 양쪽 조건 독립 검증 등
+    - 우선순위/순서 (6개): BLOB > COLOR_FILTER, BLOB > EDGE_DETECTION, BLOB > TEMPLATE_MATCHING, COLOR_FILTER > EDGE_DETECTION, COLOR_FILTER > TEMPLATE_MATCHING, EDGE_DETECTION > TEMPLATE_MATCHING
+    - 엣지 케이스 (4개): 전체 0, 전체 최대, BLOB 단일 조건 충족, EDGE_DETECTION 단일 조건 충족
+    - 결정론 (2개): 동일 입력 10회 동일 결과, 다른 인스턴스 동일 결과
+    - Directive 독립성 (3개): directive 있어도 결과 동일, directive override 시도 무시, set_directive 후 결과 동일
 
 ### Step 18: Inspection Plan Agent 구현 (2026-04-26)
 
