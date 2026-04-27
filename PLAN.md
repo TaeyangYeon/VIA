@@ -1445,6 +1445,37 @@ Badge Error       bg-red-500/20 text-red-400
     - execute 핵심 9개, JSON 파싱 강건성 4개, 에러 처리 3개
     - Directive 2개, 엣지 케이스 3개
 
+### Step 21: Algorithm Coder Agent (Align) 구현 (2026-04-27)
+
+**작업 결과:**
+- CODER_ALIGN_SYSTEM_PROMPT 상수 구현 (agents/prompts/coder_align_prompt.py): align(image: np.ndarray) -> dict 시그니처 강제, {"x": float, "y": float, "confidence": float, "method_used": str} 반환 형식 명시, Fallback Chain (template_matching → edge_detection → caliper) 순서 명시, Edge Learning / Deep Learning 명시적 금지, HW 개선(조명/카메라/지그) 권고, cv2/numpy 전용 제약, Korean explanation 요구
+- build_coder_align_prompt(pipeline_summary: str, directive: str | None = None) → str 빌더 함수 구현: fallback chain 명시, pipeline_summary 포함, directive 있으면 "Additional directive:" 형식으로 append
+- AlgorithmCoderAlign 전체 구현 (agents/algorithm_coder_align.py): BaseAgent 상속, agent_name="algorithm_coder_align"
+  - execute(pipeline: ProcessingPipeline) → AlgorithmResult (async)
+  - Inspection과 달리 items 순회 없이 단일 generate 호출 (통합 fallback chain 코드 1개 생성)
+  - pipeline.blocks에서 pipeline_summary 생성 (block name + params, 빈 블록 "(no preprocessing)")
+  - JSON 파싱 강건성: markdown code fence 자동 제거, 파싱/빈 응답 실패 시 1회 재시도, 2회 실패 ValueError
+  - AlgorithmResult.category = TEMPLATE_MATCHING (fallback chain의 primary method)
+  - OllamaError 계열 예외 그대로 전파
+
+**발생 이슈:**
+- 루트 원인: 실제 개발 환경에 pytest-asyncio 미설치, anyio만 설치됨. @pytest.mark.asyncio가 unknown mark → anyio 플러그인 수집 불가 → "async def functions are not natively supported" 발생. Claude Code 환경에는 pytest-asyncio가 있어 3회 반복 재현 실패.
+- 해결: @pytest.mark.asyncio → @pytest.mark.anyio 전환 (26개) + anyio_backend 픽스처 추가 (params=["asyncio"]) — test_api_health.py 등 기존 파일 패턴 준수.
+
+**생성/수정 파일:**
+- tests/test_coder_align.py (신규 — 59개 테스트, 클래스 기반 재구성)
+- agents/prompts/coder_align_prompt.py (신규)
+- agents/algorithm_coder_align.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 878개 테스트 전체 GREEN (878 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 21: 59개 PASSED (tests/test_coder_align.py)
+    - 시스템 프롬프트 19개, 빌더 함수 7개, 클래스 구조 6개
+    - execute 핵심 8개, JSON 파싱 강건성 7개, 에러 처리 4개
+    - Directive 지원 3개, 엣지 케이스 5개
+
 ### Step 12: Spec Agent 구현 (2026-04-23)
 
 **작업 결과:**

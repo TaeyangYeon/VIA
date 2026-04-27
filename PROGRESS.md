@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 20 완료 / Step 21 대기
+## 현재 진행 단계: Step 21 완료 / Step 22 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -29,7 +29,7 @@
 - [x] Step 18: Inspection Plan Agent (2026-04-26)
 - [x] Step 19: Algorithm Selector (결정 트리) (2026-04-27)
 - [x] Step 20: Algorithm Coder Agent (Inspection) (2026-04-27)
-- [ ] Step 21: Algorithm Coder Agent (Align)
+- [x] Step 21: Algorithm Coder Agent (Align) (2026-04-27)
 - [ ] Step 22: Test Agent (Inspection, 항목별)
 - [ ] Step 23: Test Agent (Align)
 - [ ] Step 24: 코드 정적 검증 레이어
@@ -797,6 +797,43 @@
     - JSON 파싱 강건성 (4개): markdown code fence 처리, plain JSON, 1회 실패 후 재시도 성공, 2회 실패 ValueError
     - 에러 처리 (3개): OllamaError 전파, OllamaConnectionError 전파, 빈 items 재시도
     - 엣지 케이스 (2개): 단일 item(의존성 없음), 복잡한 5단계 의존성 체인
+
+### Step 21: Algorithm Coder Agent (Align) 구현 (2026-04-27)
+
+**작업 결과:**
+- CODER_ALIGN_SYSTEM_PROMPT 상수 구현 (agents/prompts/coder_align_prompt.py): align(image: np.ndarray) -> dict 시그니처 강제, {"x": float, "y": float, "confidence": float, "method_used": str} 반환 형식 명시, Fallback Chain (template_matching → edge_detection → caliper) 순서 명시, Edge Learning / Deep Learning 명시적 금지, HW 개선(조명/카메라/지그) 권고, cv2/numpy 전용 제약, Korean explanation 요구
+- build_coder_align_prompt(pipeline_summary: str, directive: str | None = None) → str 빌더 함수 구현: fallback chain 명시, pipeline_summary 포함, directive 있으면 "Additional directive:" 형식으로 append
+- AlgorithmCoderAlign 전체 구현 (agents/algorithm_coder_align.py): BaseAgent 상속, agent_name="algorithm_coder_align"
+  - execute(pipeline: ProcessingPipeline) → AlgorithmResult (async)
+  - Inspection과 달리 items 순회 없이 단일 generate 호출 (통합 fallback chain 코드 1개 생성)
+  - pipeline.blocks에서 pipeline_summary 생성 (block name + params, 빈 블록 "(no preprocessing)")
+  - JSON 파싱 강건성: markdown code fence 자동 제거, 파싱/빈 응답 실패 시 1회 재시도, 2회 실패 ValueError
+  - AlgorithmResult.category = TEMPLATE_MATCHING (fallback chain의 primary method)
+  - OllamaError 계열 예외 그대로 전파
+
+**발생 이슈:**
+- 루트 원인: 프로젝트 실제 개발 환경에 pytest-asyncio가 설치되어 있지 않고 anyio만 설치됨. @pytest.mark.asyncio 데코레이터가 unknown mark로 인식되어 anyio 플러그인이 해당 테스트를 수집하지 못하고 pytest 기본 수집기가 "async def functions are not natively supported" 에러를 발생시킴.
+- Claude Code 환경에는 pytest-asyncio가 설치되어 있어 3회 반복 재현 실패 (환경 차이).
+- 해결: @pytest.mark.asyncio → @pytest.mark.anyio 로 전환 (26개), anyio_backend 픽스처 추가 (params=["asyncio"]) — test_api_health.py 등 기존 파일과 동일한 패턴. anyio의 [asyncio] 파라미터화 방식으로 async 테스트 정상 수집.
+
+**생성/수정 파일:**
+- tests/test_coder_align.py (신규 — 59개 테스트, 클래스 기반 재구성)
+- agents/prompts/coder_align_prompt.py (신규)
+- agents/algorithm_coder_align.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 878개 테스트 전체 GREEN (878 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 21: 59개 PASSED (tests/test_coder_align.py)
+    - 시스템 프롬프트 (19개): string/비공백, align 시그니처, x/y/confidence/method_used 반환키, template_matching/edge_detection/caliper fallback 포함, 순서 검증(template<edge<caliper), EL/DL 금지, Korean explanation, cv2/numpy, JSON 출력, HW 개선 권고
+    - 빌더 함수 (7개): string 반환, pipeline_summary 포함, directive 포함/미포함, default=None, 빈 summary 처리, 비공백
+    - 클래스 구조 (6개): BaseAgent 상속, agent_name, 코루틴, _ollama 저장, directive 생성자, 기본 directive=None
+    - execute 핵심 (8개): AlgorithmResult 반환, TEMPLATE_MATCHING category, code/explanation LLM에서, pipeline 보존, ollama 1회 호출, system prompt 사용, pipeline_summary 프롬프트 포함
+    - JSON 파싱 강건성 (7개): clean JSON, ```json 펜스, plain 펜스, 첫 실패 재시도, 빈 응답 재시도, 2회 실패 ValueError, 2회 빈 응답 ValueError
+    - 에러 처리 (4개): OllamaError/OllamaConnectionError/OllamaGenerationError 전파, 재시도 중 OllamaError 전파
+    - Directive 지원 (3개): set_directive 동작, directive 프롬프트 포함, 미지정 시 "Additional directive" 미포함
+    - 엣지 케이스 (5개): 빈 pipeline → "(no preprocessing)" 프롬프트, 블록 params 포함 summary, 항상 TEMPLATE_MATCHING, pipeline 일치, params없는 블록 이름만 포함
 
 ### Step 20: Algorithm Coder Agent (Inspection) 구현 (2026-04-27)
 
