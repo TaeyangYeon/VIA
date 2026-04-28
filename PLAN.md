@@ -1445,6 +1445,36 @@ Badge Error       bg-red-500/20 text-red-400
     - execute 핵심 9개, JSON 파싱 강건성 4개, 에러 처리 3개
     - Directive 2개, 엣지 케이스 3개
 
+### Step 22: Test Agent (Inspection, 항목별) 구현 (2026-04-28)
+
+**작업 결과:**
+- TestAgentInspection 전체 구현 (agents/test_agent_inspection.py): BaseAgent 상속, agent_name="test_agent_inspection"
+  - execute(code: str, plan: InspectionPlan, test_images: list[tuple[np.ndarray, str]]) → list[ItemTestResult] (synchronous, LLM 호출 없음)
+  - _extract_functions(): ast.parse로 함수 경계 파악 → 각 함수를 개별 exec()로 격리 실행 (np/cv2 사전 주입), SyntaxError/exec 실패 시 WARNING 로그
+  - 함수 매핑: plan.items 인덱스 순서대로 코드 내 inspect_item 함수에 1:1 매핑 (item 0 → 1번째 함수)
+  - _compute_metrics(): OK_/NG_ 파일명으로 ground truth 판별, 예외 발생 시 오답 처리 (OK 이미지 → NG 예측, NG 이미지 → OK 예측)
+  - 메트릭 공식: accuracy=correct/total, fp_rate=FP/total_ok (OK 없으면 0.0), fn_rate=FN/total_ng (NG 없으면 0.0), 전체 [0.0, 1.0] 클램프
+  - _evaluate_criteria(): "accuracy >= 0.9", "fp_rate <= 0.05", "fn_rate <= 0.1" 형식 파싱, 파싱 실패 시 기본값 (accuracy >= 0.8)
+  - _topological_sort(): Kahn's 알고리즘으로 depends_on 의존성 순서 정렬
+  - _has_failed_dependency(): 의존 항목 실패 시 skipped 처리 (details="skipped: dependency_failed", 메트릭 전체 0.0)
+  - Directive 로그: INFO 레벨로 기록, 실행 로직에는 영향 없음
+
+**발생 이슈:**
+- details 필드가 str 타입인데 "function_extraction_failed" 문자열에 "error" 단어가 없어 테스트 실패 → "error: function_extraction_failed"로 수정
+
+**생성/수정 파일:**
+- tests/test_test_agent_inspection.py (신규 — 60개 테스트)
+- agents/test_agent_inspection.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 938개 테스트 전체 GREEN (938 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 22: 60개 PASSED (tests/test_test_agent_inspection.py)
+    - 클래스 구조 6개, 반환 타입 5개, 함수 추출 6개
+    - Ground truth 파싱 5개, 메트릭 계산 11개, depends_on 순서 5개
+    - 성공 기준 파싱 8개, 엣지 케이스 9개, Directive 지원 2개, 로깅 검증 3개
+
 ### Step 21: Algorithm Coder Agent (Align) 구현 (2026-04-27)
 
 **작업 결과:**
