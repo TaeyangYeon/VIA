@@ -1475,6 +1475,37 @@ Badge Error       bg-red-500/20 text-red-400
     - Ground truth 파싱 5개, 메트릭 계산 11개, depends_on 순서 5개
     - 성공 기준 파싱 8개, 엣지 케이스 9개, Directive 지원 2개, 로깅 검증 3개
 
+### Step 23: Test Agent (Align) 구현 (2026-04-28)
+
+**작업 결과:**
+- TestAgentAlign 전체 구현 (agents/test_agent_align.py): BaseAgent 상속, agent_name="test_agent_align"
+  - execute(code: str, test_images: list[tuple[np.ndarray, str]], success_criteria: list[str] | None = None) → list[ItemTestResult] (synchronous, LLM 호출 없음)
+  - 항상 단일 원소 list 반환: ItemTestResult(item_id=0, item_name="align")
+  - _extract_align(): ast.parse 유효성 검사 후 전체 code를 exec() (np/cv2 사전 주입), align 함수 존재 검증, 실패 시 WARNING 로그 + details="error: function_extraction_failed" 포함 실패 결과 반환
+  - GT 파일명 패턴: "X_{float}_Y_{float}_{index}.png" — 정수/소수 모두 지원, 패턴 불일치 파일은 WARNING 로그 후 스킵
+  - _compute_metrics(): 유효 이미지별 Euclidean distance 계산, align() 예외 시 9999.0으로 실패 처리
+  - coord_error: 유효 이미지 평균 Euclidean distance, 유효 이미지 없으면 0.0
+  - success_rate: coord_error < threshold(기본 2.0) 이미지 비율, [0.0, 1.0] 클램프
+  - accuracy/fp_rate/fn_rate: 0.0 (Align 모드에서 해당 없음)
+  - _evaluate_criteria(): 기본 coord_error <= 2.0 AND success_rate >= 0.9, 커스텀 기준은 "coord_error <= 1.5" 형식 파싱 — 전체 기준 AND 논리
+  - Directive 로그: INFO 레벨로 기록, 실행 로직에는 영향 없음
+
+**발생 이슈:**
+- 없음 (67개 테스트 1회 실행에서 전체 GREEN)
+
+**생성/수정 파일:**
+- tests/test_test_agent_align.py (신규 — 67개 테스트)
+- agents/test_agent_align.py (수정 — placeholder → 전체 구현)
+- progress.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1005개 테스트 전체 GREEN (1005 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 23: 67개 PASSED (tests/test_test_agent_align.py)
+    - 클래스 구조 6개, 반환 타입 6개, 함수 추출 8개
+    - Ground truth 파싱 7개, 메트릭 계산 14개, 성공 기준 평가 10개
+    - 엣지 케이스 8개, Directive 지원 3개, 로깅 검증 5개
+
 ### Step 21: Algorithm Coder Agent (Align) 구현 (2026-04-27)
 
 **작업 결과:**
