@@ -1615,6 +1615,47 @@ Badge Error       bg-red-500/20 text-red-400
     - Judge 피드백 context 2개, 실패 이력 누적 3개, retry_count 4개
     - 에스컬레이션 9개, reset() 3개, Directive 3개
 
+### Step 27: Decision Agent 구현 (EL/DL 판단) (2026-04-29)
+
+**작업 결과:**
+- DecisionAgent 전체 구현 (agents/decision_agent.py): BaseAgent 상속, agent_name="decision_agent"
+  - execute(iteration_history: list[dict], mode: str = "inspection", judge_result: Optional[JudgementResult] = None, image_diagnosis: Optional[ImageDiagnosis] = None) → DecisionResult (synchronous, LLM 호출 없음)
+  - 결정 우선순위 (inspection 모드):
+    1. judge_avg >= 0.6 → RULE_BASED (파라미터 조정 여지 존재)
+    2. defect_scale == micro AND texture_complexity < 0.3 → EDGE_LEARNING (미세·일관 패턴)
+    3. defect_scale == texture OR texture_complexity >= 0.5 → DEEP_LEARNING (다양·불규칙 형태)
+    4. iteration_count >= 3 AND best_accuracy < 0.5 → DEEP_LEARNING (규칙 기반 한계)
+    5. iteration_count >= 3 AND best_accuracy < 0.7 → EDGE_LEARNING (중간 성능 정체)
+    6. 기본 폴백 → EDGE_LEARNING
+  - align 모드: 항상 RULE_BASED, 하드웨어/광학 개선 권고 (EL/DL 절대 반환 안 함)
+  - _best_accuracy(): iteration_history 전체에서 ItemTestResult.metrics.accuracy 최댓값 추출 (None 안전 처리)
+  - _judge_avg(): visibility/separability/measurability 산술 평균
+  - DecisionResult.details: mode, iteration_count, best_accuracy, latest_judge_avg, defect_scale(있을 때), texture_complexity(있을 때)
+  - reason 문자열: 한국어, 결정 근거 명시
+
+**발생 이슈:**
+- Gate 3 수동 검증에서 `AttributeError: 'str' object has no attribute 'value'` 발생.
+  - 원인: `ImageDiagnosis.defect_scale`은 `models.py`에서 `DefectScale` enum으로 타입 힌트되어 있으나, 런타임에 Image Analysis Agent가 plain str(`"micro"`, `"texture"` 등)로 전달함. Python dataclass는 타입을 강제하지 않아 str이 그대로 저장됨.
+  - 테스트에서는 `DefectScale.micro`(enum)로 전달했기 때문에 66개 테스트 전체 통과했으나 런타임 경로를 커버하지 못했음.
+  - 수정: `_defect_scale_str()` 정규화 헬퍼 추가 — `hasattr(x, 'value')`로 enum/str 구분하여 항상 plain str 반환. 비교 로직도 `DefectScale.micro.value`("micro"), `DefectScale.texture.value`("texture") 문자열 리터럴과 비교하도록 변경.
+  - 테스트에 `_diagnosis_str()` 헬퍼 및 str 입력 케이스 9개 추가 (Gate 3 재현 테스트 포함).
+
+**생성/수정 파일:**
+- tests/test_decision_agent.py (신규 — 75개 테스트: 원래 66 + str 입력 9 추가)
+- agents/decision_agent.py (수정 — placeholder → 전체 구현, Gate 3 수정 포함)
+- PLAN.md (수정)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 1260개 테스트 전체 GREEN (1260 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 27: 75개 PASSED (tests/test_decision_agent.py)
+    - 클래스 구조 7개, LLM 없음 검증 3개
+    - align 모드 8개, inspection RULE_BASED 6개
+    - inspection EDGE_LEARNING 5개, inspection DEEP_LEARNING 6개
+    - 이력 기반 결정 8개, 기본 폴백 3개
+    - evidence dict 완전성 8개, 우선순위/순서 4개
+    - 엣지 케이스 5개, 결정론성 2개, directive 독립성 2개 (기타 포함)
+
 ### Step 21: Algorithm Coder Agent (Align) 구현 (2026-04-27)
 
 **작업 결과:**
