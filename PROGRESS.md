@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 25 완료 / Step 26 대기
+## 현재 진행 단계: Step 26 완료 / Step 27 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -36,7 +36,7 @@
 
 ## Phase 5: 평가 & 피드백 루프
 - [x] Step 25: Evaluation Agent (항목별 세분화) (2026-04-29)
-- [ ] Step 26: Feedback Controller
+- [x] Step 26: Feedback Controller (2026-04-29)
 - [ ] Step 27: Decision Agent (EL/DL 판단)
 - [ ] Step 28: Orchestrator (기본 파이프라인)
 - [ ] Step 29: Orchestrator Retry 로직

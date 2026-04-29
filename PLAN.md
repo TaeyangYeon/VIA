@@ -1578,6 +1578,43 @@ Badge Error       bg-red-500/20 text-red-400
     - 파이프라인 파라미터 부적합 4개, 알고리즘 카테고리 오류(inspection) 4개, (align) 3개
     - 우선순위 5개, 실패항목/분석 4개, 요약 4개, 엣지케이스 5개, Directive 2개, 모드 3개
 
+### Step 26: Feedback Controller 구현 (2026-04-29)
+
+**작업 결과:**
+- FeedbackController 전체 구현 (agents/feedback_controller.py): BaseAgent 상속, agent_name="feedback_controller"
+  - execute(eval_result: EvaluationResult, judge_result: Optional[JudgementResult] = None) → Optional[FeedbackAction] (synchronous, LLM 호출 없음)
+  - 6가지 FailureReason → (target_agent, action) 매핑 (_MAPPING dict):
+    - pipeline_bad_fit → ("pipeline_composer", "recompose")
+    - pipeline_bad_params → ("parameter_searcher", "re-search")
+    - algorithm_wrong_category → ("algorithm_selector", "re-select")
+    - algorithm_runtime_error → ("algorithm_coder", "regenerate")
+    - inspection_plan_issue → ("inspection_plan", "redesign")
+    - spec_issue → ("spec_agent", "re-extract")
+  - 에스컬레이션 체인 (_ESCALATION dict): 연속 동일 failure_reason 2회 이상 시 → 상위 원인으로 escalate
+    - pipeline_bad_params → pipeline_bad_fit → spec_issue
+    - algorithm_runtime_error → algorithm_wrong_category → inspection_plan_issue
+  - 연속 발생 추적: _consecutive_reason, _consecutive_count
+  - 실패 이력 누적: _failure_history(list), _reason_counts(dict), _target_retry_counts(dict)
+  - context 구성: action, failed_items, failure_history, reason_counts + judge_feedback(있을 때) + escalated/escalated_from(에스컬레이션 시)
+  - reset() 메서드: 전체 이력 초기화 (파이프라인 재실행 간 사용)
+  - overall_passed=True 또는 failure_reason=None → None 반환
+
+**발생 이슈:**
+- 프롬프트에서 FeedbackAction.action(str) 필드로 설명했으나 실제 models.py에는 reason(FailureReason) 필드 존재 → 실제 모델 우선 적용, action은 context dict에 포함
+
+**생성/수정 파일:**
+- tests/test_feedback_controller.py (신규 — 44개 테스트)
+- agents/feedback_controller.py (수정 — placeholder → 전체 구현)
+- progress.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1185개 테스트 전체 GREEN (1185 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 26: 44개 PASSED (tests/test_feedback_controller.py)
+    - 클래스 구조 6개, 기본 매핑 12개, 실패 항목 context 2개
+    - Judge 피드백 context 2개, 실패 이력 누적 3개, retry_count 4개
+    - 에스컬레이션 9개, reset() 3개, Directive 3개
+
 ### Step 21: Algorithm Coder Agent (Align) 구현 (2026-04-27)
 
 **작업 결과:**
