@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 24 완료 / Step 25 대기
+## 현재 진행 단계: Step 25 완료 / Step 26 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -35,7 +35,7 @@
 - [x] Step 24: 코드 정적 검증 레이어 (2026-04-29)
 
 ## Phase 5: 평가 & 피드백 루프
-- [ ] Step 25: Evaluation Agent (항목별 세분화)
+- [x] Step 25: Evaluation Agent (항목별 세분화) (2026-04-29)
 - [ ] Step 26: Feedback Controller
 - [ ] Step 27: Decision Agent (EL/DL 판단)
 - [ ] Step 28: Orchestrator (기본 파이프라인)
@@ -902,3 +902,37 @@
     - 클래스 구조 6개, 반환 타입 6개, 함수 추출 8개
     - Ground truth 파싱 7개, 메트릭 계산 14개, 성공 기준 평가 10개
     - 엣지 케이스 8개, Directive 지원 3개, 로깅 검증 5개
+
+### Step 25: Evaluation Agent (항목별 세분화) 구현 (2026-04-29)
+
+**작업 결과:**
+- EvaluationAgent 전체 구현 (agents/evaluation_agent.py): BaseAgent 상속, agent_name="evaluation_agent"
+  - execute(test_results, judge_result=None, plan=None, mode="inspection") → EvaluationResult (synchronous, LLM 호출 없음)
+  - 6가지 FailureReason 우선순위 기반 판정 (algorithm_runtime_error > spec_issue > inspection_plan_issue > pipeline_bad_fit > algorithm_wrong_category > pipeline_bad_params)
+  - 항목별 개별 원인 판정 (_item_reason): "error" 문자열 감지(대소문자 무시) → runtime_error, judge 점수 < 0.4 → bad_fit, 메트릭 패턴 → wrong_category, 기본값 → bad_params
+  - 전역 원인 판정: 100% 실패 → spec_issue, 3개 이상 실패 + 의존성 체인 → inspection_plan_issue
+  - 전체 collected 이유 중 최고 우선순위를 overall failure_reason으로 결정
+  - Inspection 모드 wrong_category: accuracy < 0.5 AND fp_rate > 0.3 AND fn_rate > 0.3
+  - Align 모드 wrong_category: coord_error > 10.0 AND success_rate < 0.2
+  - analysis: "{총}개 항목 중 {실패}개 실패. 주요 원인: {한국어 이유}" 형식의 한국어 요약
+  - EvaluationResult: overall_passed, failure_reason (단일값), failed_items (정렬된 id 목록), analysis
+  - 실제 models.py EvaluationResult 필드 기준 구현 (프롬프트 설명과 차이 있어 실제 모델 우선)
+
+**발생 이슈:**
+- 프롬프트에서 설명한 EvaluationResult 구조(success, failure_reasons 리스트, item_evaluations, summary)가 실제 models.py와 다름 → 실제 모델 필드(overall_passed, failure_reason 단일값, failed_items, analysis) 기준으로 구현
+
+**생성/수정 파일:**
+- tests/test_evaluation_agent.py (신규 — 63개 테스트)
+- agents/evaluation_agent.py (수정 — placeholder → 전체 구현)
+- progress.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1141개 테스트 전체 GREEN (1141 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 25: 63개 PASSED (tests/test_evaluation_agent.py)
+    - 클래스 구조 7개, 전체 통과 시나리오 4개
+    - 런타임 에러 감지 5개, Spec issue 4개, 검사 계획 이슈 5개
+    - 파이프라인 부적합 4개, 파이프라인 파라미터 부적합 4개
+    - 알고리즘 카테고리 오류 (inspection) 4개, (align) 3개
+    - 우선순위 정렬 5개, 실패 항목 및 분석 4개
+    - 분석 요약 4개, 엣지 케이스 5개, Directive 지원 2개, 모드 처리 3개

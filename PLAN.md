@@ -1547,6 +1547,37 @@ Badge Error       bg-red-500/20 text-red-400
     - validate combined: 10 (inspection/align 완전통과, syntax/import/function 오류 → 전체실패, 오류 2개 이상 집계, 경고 집계, 기본모드=inspection, 경고있어도 valid, 빈문자열 실패)
     - 로깅: 5 (성공=INFO, 실패=ERROR, 경고=WARNING, 성공시 ERROR없음, agent name 확인)
 
+### Step 25: Evaluation Agent (항목별 세분화) 구현 (2026-04-29)
+
+**작업 결과:**
+- EvaluationAgent 전체 구현 (agents/evaluation_agent.py): BaseAgent 상속, agent_name="evaluation_agent"
+  - execute(test_results, judge_result=None, plan=None, mode="inspection") → EvaluationResult (synchronous, LLM 호출 없음)
+  - 6가지 FailureReason 우선순위: algorithm_runtime_error > spec_issue > inspection_plan_issue > pipeline_bad_fit > algorithm_wrong_category > pipeline_bad_params
+  - 항목별 개별 원인(_item_reason): "error" 감지(case-insensitive) → runtime_error, judge 점수 < 0.4 → bad_fit, 메트릭 패턴 → wrong_category, 기본 → bad_params
+  - 전역 원인: 100% 실패 → spec_issue, 3개 이상 실패 + 의존성 체인(plan 기반) → inspection_plan_issue
+  - 전체 collected 이유 중 최고 우선순위 선택 → overall failure_reason
+  - Inspection 모드 wrong_category: accuracy < 0.5 AND fp_rate > 0.3 AND fn_rate > 0.3
+  - Align 모드 wrong_category: coord_error > 10.0 AND success_rate < 0.2
+  - analysis: 한국어 요약 "{총}개 항목 중 {실패}개 실패. 주요 원인: {이유}"
+  - 실제 models.py EvaluationResult 필드 기준 구현 (overall_passed, failure_reason, failed_items, analysis)
+
+**발생 이슈:**
+- 프롬프트 설명 EvaluationResult 구조(success, failure_reasons 리스트)가 실제 models.py와 다름 → 실제 모델 우선 적용
+
+**생성/수정 파일:**
+- tests/test_evaluation_agent.py (신규 — 63개 테스트)
+- agents/evaluation_agent.py (수정 — placeholder → 전체 구현)
+- progress.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1141개 테스트 전체 GREEN (1141 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 25: 63개 PASSED (tests/test_evaluation_agent.py)
+    - 클래스 구조 7개, 전체 통과 시나리오 4개, 런타임 에러 5개
+    - Spec issue 4개, 검사 계획 이슈 5개, 파이프라인 부적합 4개
+    - 파이프라인 파라미터 부적합 4개, 알고리즘 카테고리 오류(inspection) 4개, (align) 3개
+    - 우선순위 5개, 실패항목/분석 4개, 요약 4개, 엣지케이스 5개, Directive 2개, 모드 3개
+
 ### Step 21: Algorithm Coder Agent (Align) 구현 (2026-04-27)
 
 **작업 결과:**
