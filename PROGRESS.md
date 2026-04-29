@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 23 완료 / Step 24 대기
+## 현재 진행 단계: Step 24 완료 / Step 25 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -32,7 +32,7 @@
 - [x] Step 21: Algorithm Coder Agent (Align) (2026-04-27)
 - [x] Step 22: Test Agent (Inspection, 항목별) (2026-04-28)
 - [x] Step 23: Test Agent (Align) (2026-04-28)
-- [ ] Step 24: 코드 정적 검증 레이어
+- [x] Step 24: 코드 정적 검증 레이어 (2026-04-29)
 
 ## Phase 5: 평가 & 피드백 루프
 - [ ] Step 25: Evaluation Agent (항목별 세분화)

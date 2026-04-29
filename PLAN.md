@@ -1506,6 +1506,47 @@ Badge Error       bg-red-500/20 text-red-400
     - Ground truth 파싱 7개, 메트릭 계산 14개, 성공 기준 평가 10개
     - 엣지 케이스 8개, Directive 지원 3개, 로깅 검증 5개
 
+### Step 24: 코드 정적 검증 레이어 구현 (2026-04-29)
+
+**작업 결과:**
+- ValidationResult dataclass 구현 (agents/code_validator.py): is_valid: bool, errors: list[str], warnings: list[str] — field(default_factory=list)로 mutable default 안전 처리
+- CodeValidator 클래스 구현 (agents/code_validator.py): BaseAgent 비상속 순수 유틸리티 클래스, LLM 호출 없음, AST 전용 분석
+  - validate(code, mode="inspection") → ValidationResult: 3단계 검사 순서 실행 + 집계. syntax 실패 시 import/function 검사 생략 (AST 파싱 불가). 최종 결과에 따라 INFO/WARNING/ERROR 로그
+  - validate_syntax(code) → ValidationResult: 빈 문자열/공백 명시적 에러 처리 (ast.parse("")가 성공하므로 특별 처리 필요), SyntaxError 메시지 포함한 에러 반환
+  - validate_imports(code) → ValidationResult: ast.walk로 전체 트리 순회 — Import/ImportFrom 노드에서 허용 모듈(cv2, numpy) 외 차단, 함수 내부 중첩 import도 탐지. Call 노드에서 __import__/exec/eval 호출 → 에러 아닌 경고(warning)로 처리
+  - validate_functions(code, mode) → ValidationResult: ast.walk로 FunctionDef 탐색, posonlyargs+args+kwonlyargs 3종 합산으로 정확한 파라미터 수 계산, vararg/kwarg도 확인하여 `*args`/`**kwargs` 있는 함수 차단
+  - inspection mode: name="inspect_item" AND 파라미터 정확히 1개 이름="image" 함수가 1개 이상 존재해야 통과 (다중 함수 허용)
+  - align mode: name="align" AND 파라미터 정확히 1개 이름="image" 함수가 1개 이상 존재해야 통과
+  - 타입 어노테이션 (image: np.ndarray) 있어도 arg.arg == "image" 조건으로 정상 통과
+- 로깅: agent="code_validator", validate() 완료 후 1회 — 성공(경고 없음)=INFO, 성공(경고 있음)=WARNING, 실패=ERROR
+
+**발생 이슈:**
+- 없음 (73개 테스트 1회 실행에서 전체 GREEN)
+
+**설계 결정:**
+- empty string → validate_syntax에서 명시적 에러 처리 (ast.parse("")은 SyntaxError가 아닌 빈 모듈로 파싱됨)
+- __import__/exec/eval → 완전 차단 대신 경고 처리 (spec 명시: warning not error)
+- syntax 실패 시 import/function 검사 조기 종료 (중복 "cannot parse" 에러 방지)
+- validate_imports에서 from X import (X=cv2/numpy)는 허용, 그 외 모든 from X import 차단
+
+**생성/수정 파일:**
+- tests/test_code_validator.py (신규 — 73개 테스트)
+- agents/code_validator.py (수정 — placeholder → ValidationResult + CodeValidator 전체 구현)
+- progress.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1078개 테스트 전체 GREEN (1078 passed, 0 failed) — Ollama 통합 테스트 제외
+  - Step 24: 73개 PASSED (tests/test_code_validator.py)
+    - ValidationResult 구조: 5 (dataclass 확인, 3개 필드, 유효/무효/경고 결과)
+    - CodeValidator 구조: 10 (importable, BaseAgent 비상속, 4개 메서드, 반환타입 4종)
+    - validate_syntax: 8 (유효 코드, 빈 문자열, 공백 전용, 구문오류, 오류메시지, 주석만, align코드, 불완전 함수)
+    - validate_imports: 18 (cv2+numpy 허용, os/sys/subprocess/importlib 차단, from os/sys 차단, from cv2/numpy 허용, 중첩 import/from import 차단, __import__ 경고, exec 경고, eval 경고, import 없음, 에러메시지 모듈명 포함, 복수 에러, numpy alias 없이 허용)
+    - validate_functions inspection: 9 (단일/타입어노테이션/다중 통과, 함수없음/주석만/잘못된파라미터명/추가파라미터/파라미터없음 실패, 기본모드=inspection)
+    - validate_functions align: 8 (단일/타입어노테이션 통과, 함수없음/잘못된파라미터명/추가파라미터/파라미터없음/inspection코드 실패, 주석만 실패)
+    - validate combined: 10 (inspection/align 완전통과, syntax/import/function 오류 → 전체실패, 오류 2개 이상 집계, 경고 집계, 기본모드=inspection, 경고있어도 valid, 빈문자열 실패)
+    - 로깅: 5 (성공=INFO, 실패=ERROR, 경고=WARNING, 성공시 ERROR없음, agent name 확인)
+
 ### Step 21: Algorithm Coder Agent (Align) 구현 (2026-04-27)
 
 **작업 결과:**
