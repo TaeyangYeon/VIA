@@ -1615,6 +1615,40 @@ Badge Error       bg-red-500/20 text-red-400
     - Judge 피드백 context 2개, 실패 이력 누적 3개, retry_count 4개
     - 에스컬레이션 9개, reset() 3개, Directive 3개
 
+### Step 28: Orchestrator 기본 파이프라인 구현 (2026-04-30)
+
+**작업 결과:**
+- Orchestrator 전체 구현 (agents/orchestrator.py): BaseAgent 상속, agent_name="orchestrator"
+  - execute(purpose_text, analysis_images, test_images, directives=None, config=None) → dict (async)
+  - Inspection 모드: SpecAgent → ImageAnalysis → PipelineComposer → [ParameterSearcher + VisionJudge per pipeline] → InspectionPlanAgent → AlgorithmSelector → AlgorithmCoderInspection → CodeValidator → TestAgentInspection → EvaluationAgent
+  - Align 모드: SpecAgent → ImageAnalysis → PipelineComposer → [ParameterSearcher + VisionJudge per pipeline] → AlgorithmCoderAlign → CodeValidator → TestAgentAlign → EvaluationAgent
+  - _select_best_pipeline(): 파이프라인별 (visibility+separability+measurability)/3 평균으로 최고 점수 선택 (동점 시 첫 번째)
+  - _distribute_directives(): AgentDirectives 각 필드를 해당 에이전트 set_directive()로 분배, None 값은 건너뜀
+  - _validate_goals(): accuracy > 0.99, fp_rate < 0.001, fn_rate < 0.001, coord_error < 0.5 시 경고 목록 반환
+  - CodeValidator 실패 시: TestAgent 호출 건너뜀, EvaluationResult(overall_passed=False, failure_reason=algorithm_runtime_error) 직접 생성
+  - ExecutionProgress: idle → running → success/failed 상태 전이, current_agent 업데이트
+  - 예외 발생 시 status="failed"로 설정 후 예외 재전파
+  - 반환 dict 키: spec_result, diagnosis, best_pipeline, judge_result, inspection_plan(None for align), algorithm_category(None for align), algorithm_result, code_validation, test_results, evaluation_result, warnings
+  - 생성자 의존성 주입: 13개 에이전트 인스턴스를 파라미터로 받음 (테스트 가능성)
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_orchestrator_basic.py (신규 — 64개 테스트)
+- agents/orchestrator.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1324개 테스트 전체 GREEN (1324 passed, 9 skipped, 0 failed) — Ollama 통합 테스트 제외
+  - Step 28: 64개 PASSED (tests/test_orchestrator_basic.py)
+    - 클래스 구조 8개, Directive 분배 8개
+    - 목표 검증 경고 5개, Inspection 파이프라인 14개
+    - Align 파이프라인 9개, 파이프라인 선택 3개
+    - 코드 검증 실패 경로 5개, 진행 추적 6개
+    - 오류 처리 4개, 로깅 2개
+
 ### Step 27: Decision Agent 구현 (EL/DL 판단) (2026-04-29)
 
 **작업 결과:**

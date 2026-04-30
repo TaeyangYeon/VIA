@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 27 완료 / Step 28 대기
+## 현재 진행 단계: Step 28 완료 / Step 29 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -38,7 +38,7 @@
 - [x] Step 25: Evaluation Agent (항목별 세분화) (2026-04-29)
 - [x] Step 26: Feedback Controller (2026-04-29)
 - [x] Step 27: Decision Agent (EL/DL 판단) (2026-04-29)
-- [ ] Step 28: Orchestrator (기본 파이프라인)
+- [x] Step 28: Orchestrator (기본 파이프라인) (2026-04-30)
 - [ ] Step 29: Orchestrator Retry 로직
 - [ ] Step 30: Orchestrator → Decision Agent 연결
 - [ ] Step 31: 파이프라인 실행 API
@@ -936,3 +936,35 @@
     - 알고리즘 카테고리 오류 (inspection) 4개, (align) 3개
     - 우선순위 정렬 5개, 실패 항목 및 분석 4개
     - 분석 요약 4개, 엣지 케이스 5개, Directive 지원 2개, 모드 처리 3개
+
+### Step 28: Orchestrator 기본 파이프라인 구현 (2026-04-30)
+
+**작업 결과:**
+- Orchestrator 전체 구현 (agents/orchestrator.py): BaseAgent 상속, agent_name="orchestrator"
+  - execute(purpose_text, analysis_images, test_images, directives=None, config=None) → dict (async)
+  - Inspection 모드 경로: SpecAgent → ImageAnalysis → PipelineComposer → [ParameterSearcher + VisionJudge per pipeline] → InspectionPlanAgent → AlgorithmSelector → AlgorithmCoderInspection → CodeValidator → TestAgentInspection → EvaluationAgent
+  - Align 모드 경로: SpecAgent → ImageAnalysis → PipelineComposer → [ParameterSearcher + VisionJudge per pipeline] → AlgorithmCoderAlign → CodeValidator → TestAgentAlign → EvaluationAgent
+  - _select_best_pipeline(): 파이프라인별 VisionJudge 평균 점수((v+s+m)/3)로 최고 선택
+  - _distribute_directives(): AgentDirectives 각 필드 → 해당 에이전트 set_directive() 호출
+  - _validate_goals(): 극단 기준 경고 생성 (accuracy>0.99, fp_rate<0.001, fn_rate<0.001, coord_error<0.5)
+  - CodeValidator 실패 시 TestAgent 스킵, EvaluationResult(failure_reason=algorithm_runtime_error) 직접 생성
+  - ExecutionProgress: idle → running → success/failed 상태 전이
+  - 생성자 의존성 주입: 13개 에이전트 인스턴스 파라미터
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_orchestrator_basic.py (신규 — 64개 테스트)
+- agents/orchestrator.py (수정 — placeholder → 전체 구현)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1324개 테스트 전체 GREEN (1324 passed, 9 skipped, 0 failed) — Ollama 통합 테스트 제외
+  - Step 28: 64개 PASSED (tests/test_orchestrator_basic.py)
+    - 클래스 구조 8개, Directive 분배 8개
+    - 목표 검증 5개, Inspection 파이프라인 14개
+    - Align 파이프라인 9개, 파이프라인 선택 3개
+    - 코드 검증 실패 경로 5개, 진행 추적 6개
+    - 오류 처리 4개, 로깅 2개
