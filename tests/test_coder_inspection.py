@@ -1,5 +1,4 @@
 """Tests for Algorithm Coder Inspection agent and prompt module."""
-import asyncio
 import inspect
 import json
 import pytest
@@ -28,6 +27,11 @@ from backend.services.ollama_client import (
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
+
+@pytest.fixture(params=["asyncio"])
+def anyio_backend(request):
+    return request.param
+
 
 @pytest.fixture
 def sample_item():
@@ -191,7 +195,7 @@ class TestAlgorithmCoderInspectionStructure:
 # ── 3. Execute Core Tests ─────────────────────────────────────────────────
 
 class TestAlgorithmCoderInspectionExecute:
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_returns_algorithm_result(self, mock_client, sample_pipeline, sample_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         result = await agent.execute(
@@ -201,7 +205,7 @@ class TestAlgorithmCoderInspectionExecute:
         )
         assert isinstance(result, AlgorithmResult)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_correct_category_set(self, mock_client, sample_pipeline, sample_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         result = await agent.execute(
@@ -211,7 +215,7 @@ class TestAlgorithmCoderInspectionExecute:
         )
         assert result.category == AlgorithmCategory.EDGE_DETECTION
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_pipeline_stored_in_result(self, mock_client, sample_pipeline, sample_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         result = await agent.execute(
@@ -221,7 +225,7 @@ class TestAlgorithmCoderInspectionExecute:
         )
         assert result.pipeline == sample_pipeline
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_generate_called_for_each_item(self, mock_client, sample_pipeline, multi_item_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         await agent.execute(
@@ -231,7 +235,7 @@ class TestAlgorithmCoderInspectionExecute:
         )
         assert mock_client.generate.call_count == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_code_is_string(self, mock_client, sample_pipeline, sample_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         result = await agent.execute(
@@ -241,7 +245,7 @@ class TestAlgorithmCoderInspectionExecute:
         )
         assert isinstance(result.code, str)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_explanation_is_string(self, mock_client, sample_pipeline, sample_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         result = await agent.execute(
@@ -251,7 +255,7 @@ class TestAlgorithmCoderInspectionExecute:
         )
         assert isinstance(result.explanation, str)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_explanation_contains_korean(self, mock_client, sample_pipeline, sample_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         result = await agent.execute(
@@ -261,7 +265,7 @@ class TestAlgorithmCoderInspectionExecute:
         )
         assert any("가" <= ch <= "힣" for ch in result.explanation)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_system_prompt_passed_to_generate(self, mock_client, sample_pipeline, sample_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         await agent.execute(
@@ -274,7 +278,7 @@ class TestAlgorithmCoderInspectionExecute:
         system_arg = call_kwargs.kwargs.get("system") or (call_kwargs.args[1] if len(call_kwargs.args) > 1 else None)
         assert system_arg == CODER_INSPECTION_SYSTEM_PROMPT
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_pipeline_summary_includes_block_names(self, mock_client, sample_pipeline, sample_plan):
         captured_prompts = []
         async def capture_generate(prompt, system=None):
@@ -297,7 +301,7 @@ class TestAlgorithmCoderInspectionExecute:
 # ── 4. JSON Parsing Robustness ────────────────────────────────────────────
 
 class TestJsonParsing:
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_handles_markdown_code_fence(self, sample_pipeline, sample_plan):
         client = MagicMock()
         client.generate = AsyncMock(return_value=(
@@ -313,7 +317,7 @@ class TestJsonParsing:
         )
         assert isinstance(result, AlgorithmResult)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_handles_plain_json(self, sample_pipeline, sample_plan):
         client = MagicMock()
         client.generate = AsyncMock(return_value=json.dumps({
@@ -328,7 +332,7 @@ class TestJsonParsing:
         )
         assert result.code != ""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_retry_on_first_json_failure(self, sample_pipeline, sample_plan):
         client = MagicMock()
         good_response = json.dumps({
@@ -345,7 +349,7 @@ class TestJsonParsing:
         assert isinstance(result, AlgorithmResult)
         assert client.generate.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_raises_value_error_on_double_json_failure(self, sample_pipeline, sample_plan):
         client = MagicMock()
         client.generate = AsyncMock(return_value="not valid json at all {{")
@@ -361,7 +365,7 @@ class TestJsonParsing:
 # ── 5. Error Handling ─────────────────────────────────────────────────────
 
 class TestErrorHandling:
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_ollama_error_propagates(self, sample_pipeline, sample_plan):
         client = MagicMock()
         client.generate = AsyncMock(side_effect=OllamaError("generic error"))
@@ -373,7 +377,7 @@ class TestErrorHandling:
                 plan=sample_plan,
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_ollama_connection_error_propagates(self, sample_pipeline, sample_plan):
         client = MagicMock()
         client.generate = AsyncMock(side_effect=OllamaConnectionError("no connection"))
@@ -385,7 +389,7 @@ class TestErrorHandling:
                 plan=sample_plan,
             )
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_empty_response_triggers_retry(self, sample_pipeline, sample_plan):
         client = MagicMock()
         good_response = json.dumps({
@@ -406,7 +410,7 @@ class TestErrorHandling:
 # ── 6. Directive Tests ────────────────────────────────────────────────────
 
 class TestDirective:
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_directive_included_in_prompt(self, sample_pipeline, sample_plan):
         captured = []
         async def cap_generate(prompt, system=None):
@@ -425,7 +429,7 @@ class TestDirective:
         )
         assert any("엄격한 검사 필요" in p for p in captured)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_no_directive_not_in_prompt(self, sample_pipeline, sample_plan):
         captured = []
         async def cap_generate(prompt, system=None):
@@ -449,7 +453,7 @@ class TestDirective:
 # ── 7. Edge Cases ─────────────────────────────────────────────────────────
 
 class TestEdgeCases:
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_single_item_plan(self, mock_client, sample_pipeline, sample_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         result = await agent.execute(
@@ -460,7 +464,7 @@ class TestEdgeCases:
         assert isinstance(result, AlgorithmResult)
         assert result.code != ""
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_five_item_plan_all_coded(self, mock_client, sample_pipeline, multi_item_plan):
         agent = AlgorithmCoderInspection(ollama_client=mock_client)
         result = await agent.execute(
@@ -471,7 +475,7 @@ class TestEdgeCases:
         assert isinstance(result, AlgorithmResult)
         assert mock_client.generate.call_count == 5
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_empty_pipeline_blocks(self, mock_client, sample_plan):
         empty_pipeline = ProcessingPipeline(name="empty", blocks=[], score=0.0)
         agent = AlgorithmCoderInspection(ollama_client=mock_client)

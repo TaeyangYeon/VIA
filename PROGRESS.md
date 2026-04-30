@@ -968,3 +968,9 @@
     - Align 파이프라인 9개, 파이프라인 선택 3개
     - 코드 검증 실패 경로 5개, 진행 추적 6개
     - 오류 처리 4개, 로깅 2개
+
+**Step 28 후속 수정 — asyncio 마커 호환성 수정 (2026-04-30):**
+- Step 21에서 식별된 pytest-asyncio 미설치 문제가 test_coder_inspection.py, test_inspection_plan.py, test_vision_judge.py 3개 파일에 잔존 (65개 async 테스트 미수정)
+- 수정 내용: @pytest.mark.asyncio → @pytest.mark.anyio (replace_all), anyio_backend 픽스처 추가, import asyncio 제거 (사용하지 않음)
+- 수정 파일: tests/test_coder_inspection.py (21개), tests/test_inspection_plan.py (24개), tests/test_vision_judge.py (20개)
+- 결과: 1324 passed, 9 skipped, 0 failed (변동 없음 — 65개 failing → passing으로 전환)

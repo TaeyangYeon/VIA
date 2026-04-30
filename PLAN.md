@@ -1649,6 +1649,11 @@ Badge Error       bg-red-500/20 text-red-400
     - 코드 검증 실패 경로 5개, 진행 추적 6개
     - 오류 처리 4개, 로깅 2개
 
+**Step 28 후속 수정 — asyncio 마커 호환성 수정 (2026-04-30):**
+- @pytest.mark.asyncio → @pytest.mark.anyio, anyio_backend 픽스처 추가, import asyncio 제거
+- 수정 파일: tests/test_coder_inspection.py (21개), tests/test_inspection_plan.py (24개), tests/test_vision_judge.py (20개)
+- 결과: 1324 passed, 9 skipped, 0 failed
+
 ### Step 27: Decision Agent 구현 (EL/DL 판단) (2026-04-29)
 
 **작업 결과:**

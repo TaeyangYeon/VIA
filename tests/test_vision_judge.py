@@ -1,7 +1,6 @@
 """Tests for Vision Judge Agent (Step 17) — ALL Ollama calls mocked."""
 from __future__ import annotations
 
-import asyncio
 import base64
 import inspect
 import json
@@ -19,6 +18,11 @@ from agents.vision_judge_agent import VisionJudgeAgent
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
+
+@pytest.fixture(params=["asyncio"])
+def anyio_backend(request):
+    return request.param
+
 
 def _make_gray(h: int = 64, w: int = 64) -> np.ndarray:
     return np.full((h, w), 128, dtype=np.uint8)
@@ -129,7 +133,7 @@ class TestVisionJudgeExecuteHappyPath:
     def agent(self):
         return VisionJudgeAgent()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_returns_judgement_result(self, agent):
         with patch(
             "agents.vision_judge_agent.ollama_client.generate_with_images",
@@ -143,7 +147,7 @@ class TestVisionJudgeExecuteHappyPath:
             )
         assert isinstance(result, JudgementResult)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_scores_in_range(self, agent):
         with patch(
             "agents.vision_judge_agent.ollama_client.generate_with_images",
@@ -159,7 +163,7 @@ class TestVisionJudgeExecuteHappyPath:
         assert 0.0 <= result.separability_score <= 1.0
         assert 0.0 <= result.measurability_score <= 1.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_problems_is_list_of_str(self, agent):
         with patch(
             "agents.vision_judge_agent.ollama_client.generate_with_images",
@@ -174,7 +178,7 @@ class TestVisionJudgeExecuteHappyPath:
         assert isinstance(result.problems, list)
         assert all(isinstance(p, str) for p in result.problems)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_next_suggestion_is_str(self, agent):
         with patch(
             "agents.vision_judge_agent.ollama_client.generate_with_images",
@@ -188,7 +192,7 @@ class TestVisionJudgeExecuteHappyPath:
             )
         assert isinstance(result.next_suggestion, str)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_both_images_sent_to_generate_with_images(self, agent):
         mock_gen = AsyncMock(return_value=_good_json())
         with patch(
@@ -214,7 +218,7 @@ class TestJsonParsingRobustness:
     def agent(self):
         return VisionJudgeAgent()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_handles_markdown_code_fence(self, agent):
         fenced = f"```json\n{_good_json()}\n```"
         with patch(
@@ -229,7 +233,7 @@ class TestJsonParsingRobustness:
             )
         assert isinstance(result, JudgementResult)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_handles_plain_json(self, agent):
         with patch(
             "agents.vision_judge_agent.ollama_client.generate_with_images",
@@ -243,7 +247,7 @@ class TestJsonParsingRobustness:
             )
         assert isinstance(result, JudgementResult)
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_retries_once_on_invalid_json_then_succeeds(self, agent):
         mock_gen = AsyncMock(side_effect=["invalid json!!!", _good_json()])
         with patch(
@@ -259,7 +263,7 @@ class TestJsonParsingRobustness:
         assert isinstance(result, JudgementResult)
         assert mock_gen.call_count == 2
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_raises_value_error_after_two_failures(self, agent):
         mock_gen = AsyncMock(side_effect=["bad json", "also bad json"])
         with patch(
@@ -282,7 +286,7 @@ class TestScoreClamping:
     def agent(self):
         return VisionJudgeAgent()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_scores_above_one_clamped(self, agent):
         over = _good_json(visibility_score=1.5, separability_score=2.0, measurability_score=1.1)
         with patch(
@@ -299,7 +303,7 @@ class TestScoreClamping:
         assert result.separability_score == 1.0
         assert result.measurability_score == 1.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_scores_below_zero_clamped(self, agent):
         under = _good_json(visibility_score=-0.5, separability_score=-1.0, measurability_score=-0.1)
         with patch(
@@ -316,7 +320,7 @@ class TestScoreClamping:
         assert result.separability_score == 0.0
         assert result.measurability_score == 0.0
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_negative_scores_clamped_to_zero(self, agent):
         neg = _good_json(visibility_score=-99.0)
         with patch(
@@ -339,7 +343,7 @@ class TestImageEncoding:
     def agent(self):
         return VisionJudgeAgent()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_grayscale_image_encoded_as_base64_png(self, agent):
         mock_gen = AsyncMock(return_value=_good_json())
         with patch(
@@ -357,7 +361,7 @@ class TestImageEncoding:
             decoded = base64.b64decode(img_b64)
             assert decoded[:4] == b"\x89PNG"  # PNG magic bytes
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_color_image_encoded_correctly(self, agent):
         mock_gen = AsyncMock(return_value=_good_json())
         with patch(
@@ -375,7 +379,7 @@ class TestImageEncoding:
             decoded = base64.b64decode(img_b64)
             assert decoded[:4] == b"\x89PNG"
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_no_data_uri_prefix_in_images(self, agent):
         mock_gen = AsyncMock(return_value=_good_json())
         with patch(
@@ -396,7 +400,7 @@ class TestImageEncoding:
 # ── Directive support ─────────────────────────────────────────────────────────
 
 class TestDirectiveSupport:
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_directive_passed_to_prompt(self):
         agent = VisionJudgeAgent(directive="highlight bright regions")
         mock_gen = AsyncMock(return_value=_good_json())
@@ -413,7 +417,7 @@ class TestDirectiveSupport:
         prompt_used = mock_gen.call_args[0][0]
         assert "highlight bright regions" in prompt_used
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_no_directive_prompt_without_directive_section(self):
         agent = VisionJudgeAgent()
         mock_gen = AsyncMock(return_value=_good_json())
@@ -438,7 +442,7 @@ class TestErrorHandling:
     def agent(self):
         return VisionJudgeAgent()
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_ollama_error_propagated(self, agent):
         from backend.services.ollama_client import OllamaError
         with patch(
@@ -453,7 +457,7 @@ class TestErrorHandling:
                     pipeline_name="y",
                 )
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_ollama_connection_error_propagated(self, agent):
         from backend.services.ollama_client import OllamaConnectionError
         with patch(
@@ -468,7 +472,7 @@ class TestErrorHandling:
                     pipeline_name="y",
                 )
 
-    @pytest.mark.asyncio
+    @pytest.mark.anyio
     async def test_empty_response_triggers_retry(self, agent):
         mock_gen = AsyncMock(side_effect=["", _good_json()])
         with patch(
