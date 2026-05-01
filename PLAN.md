@@ -1735,6 +1735,35 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 29 회귀: 53개 PASSED (tests/test_orchestrator_retry.py) — 전부 유지
   - Step 28 회귀: 64개 PASSED (tests/test_orchestrator_basic.py) — 전부 유지
 
+### Step 31: 파이프라인 실행 API (2026-05-01)
+
+**작업 결과:**
+- `backend/services/execution_manager.py` 신규 구현:
+  - `ExecutionState` 데이터클래스 (8개 필드): execution_id, status, current_agent, current_iteration, result, error, started_at, completed_at
+  - `ExecutionManager(orchestrator_factory=None)`: factory 주입으로 테스트 격리
+    - `start(purpose_text)`: 4단계 검증 → uuid4 발급 → image/test 이미지 cv2.imread() 로딩 → asyncio.create_task()
+    - `get_status(execution_id)`: 실행 중 orchestrator.get_progress()로 실시간 agent/iteration 반영
+    - `cancel(execution_id)`: task.cancel() + await + Python 3.11 C-Task 방어 로직
+    - `get_history()`: started_at 역순 정렬
+    - `_create_real_orchestrator()`: 지연 임포트 (테스트 시 미실행)
+  - 모듈 레벨 싱글톤 `execution_manager`
+- `backend/routers/execute.py` 4개 엔드포인트:
+  - `POST ""` (202): 검증 실패 400, 중복 실행 409
+  - `GET "/history"` (200): `/{id}` 앞에 등록
+  - `GET "/{execution_id}"` (200/404)
+  - `POST "/{execution_id}/cancel"` (200/400/404)
+  - `get_manager()` FastAPI 의존성으로 테스트 격리
+- `backend/main.py`: `execute_router` prefix="/api/execute" 등록
+
+**발생 이슈:**
+- Python 3.11 C-Task 조기 취소: task.cancel() 호출 시 태스크 미시작 상태이면 코루틴 본문 미실행 → `except asyncio.CancelledError` 블록 건너뜀 → state.status = "running" 유지 버그
+  - 해결: `cancel()` 메서드에서 `await self._task` 후 `state.status == "running"` 검사로 강제 "cancelled" 처리
+
+**테스트 결과:**
+- 1463개 전체 GREEN (Ollama 통합 제외)
+  - Step 31 신규: 45개 (tests/test_execute_api.py)
+  - Step 30 회귀: 41개 / Step 29 회귀: 53개 / Step 28 회귀: 64개 — 전부 유지
+
 ---
 
 ### Step 27: Decision Agent 구현 (EL/DL 판단) (2026-04-29)

@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 30 완료 / Step 31 대기
+## 현재 진행 단계: Step 31 완료 / Step 32 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -41,7 +41,7 @@
 - [x] Step 28: Orchestrator (기본 파이프라인) (2026-04-30)
 - [x] Step 29: Orchestrator Retry 로직 (2026-05-01)
 - [x] Step 30: Orchestrator → Decision Agent 연결 (2026-05-01)
-- [ ] Step 31: 파이프라인 실행 API
+- [x] Step 31: 파이프라인 실행 API (2026-05-01)
 
 ## Phase 6: 프론트엔드
 - [ ] Step 32: Electron 프로젝트 초기화
@@ -1020,4 +1020,53 @@
     - parameter_searcher 라우팅 2개, spec_agent 라우팅 3개
     - align 모드 재시도 3개, image_analysis 미재실행 2개
     - 엣지 케이스 3개
+  - Step 28 회귀: 64개 PASSED (tests/test_orchestrator_basic.py) — 전부 유지
+
+### Step 31: 파이프라인 실행 API (2026-05-01)
+
+**작업 결과:**
+- `backend/services/execution_manager.py` 신규 구현:
+  - `ExecutionState` 데이터클래스: execution_id, status, current_agent, current_iteration, result, error, started_at, completed_at
+  - `ExecutionManager` 클래스: orchestrator_factory 주입 지원 (프로덕션 = 실제 Orchestrator, 테스트 = mock)
+  - `start(purpose_text)`: 검증(purpose_text 공백, analysis 이미지 없음, config 미설정, 이미 실행 중) → uuid4 발급 → asyncio.create_task()로 백그라운드 실행
+  - `get_status(execution_id)`: 실행 중에는 orchestrator.get_progress()로 실시간 agent/iteration 조회
+  - `cancel(execution_id)`: task.cancel() + await task → Python 3.11 C-Task 조기 취소 처리 포함
+  - `get_history()`: started_at 역순 정렬
+  - `_create_real_orchestrator()`: 지연 임포트로 실제 Orchestrator 생성 (테스트 시 미실행)
+  - 모듈 레벨 싱글톤 `execution_manager` 인스턴스
+- `backend/routers/execute.py` 구현:
+  - `get_manager()` FastAPI 의존성 함수 (테스트 시 `app.dependency_overrides`로 교체)
+  - `POST ""` → 202 Accepted, `{"execution_id": ..., "status": "running"}`
+  - `GET "/history"` → `/{execution_id}` 앞에 등록 (FastAPI 라우트 순서 우선)
+  - `GET "/{execution_id}"` → 상태 조회, 404 처리
+  - `POST "/{execution_id}/cancel"` → 취소, 400(미실행)/404(미존재) 처리
+- `backend/main.py` 수정: execute_router를 prefix="/api/execute"로 등록
+
+**발생 이슈:**
+- Python 3.11 C extension `_asyncio.Task` 조기 취소 버그: task.cancel()이 태스크 시작 전에 호출되면 C 구현이 코루틴 본문을 전혀 실행하지 않고 즉시 취소. 이로 인해 `_run()`의 `except asyncio.CancelledError: state.status = "cancelled"` 블록이 실행되지 않아 상태가 "running"으로 남음.
+  - 수정: `cancel()` 메서드에서 `await self._task` 후 `state.status == "running"`인 경우 강제로 "cancelled"로 업데이트하고 `_running_id`를 초기화하는 방어 로직 추가.
+
+**생성/수정 파일:**
+- tests/test_execute_api.py (신규 — 45개 테스트)
+- backend/services/execution_manager.py (신규)
+- backend/routers/execute.py (수정 — 전체 구현)
+- backend/main.py (수정 — execute_router 등록)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1463개 테스트 전체 GREEN (1463 passed, 9 warnings, 0 failed) — Ollama 통합 테스트 제외
+  - Step 31 신규: 45개 PASSED (tests/test_execute_api.py)
+    - ExecutionState: 3개 (필드 저장, None 허용, completed_at None)
+    - ExecutionManager.start(): 8개 (UUID 반환, 초기 running 상태, 빈 purpose 거부, 공백 purpose 거부, analysis 이미지 없음, config 미설정, 중복 실행 거부, 상태 저장)
+    - ExecutionManager.get_status(): 4개 (미존재 None, 존재 반환, 완료 후 success, 오류 후 failed)
+    - ExecutionManager.cancel(): 5개 (미존재 None, cancelled 상태 설정, completed_at 설정, 완료 후 status 유지, 취소 후 재시작 허용)
+    - ExecutionManager.is_running(): 3개 (초기 False, 실행 중 True, 완료 후 False)
+    - ExecutionManager.get_history(): 3개 (초기 빈 리스트, 실행 후 포함, list 타입)
+    - POST /api/execute: 8개 (202, execution_id+status, 빈 purpose 400, 공백 purpose 400, 이미지 없음 400, config 없음 400, 중복 실행 409, 필드 누락 422)
+    - GET /api/execute/{id}: 4개 (200+상태, 404, 필드 완성도, completed_at)
+    - POST /api/execute/{id}/cancel: 4개 (200, cancelled 상태, 404, 완료 후 400)
+    - GET /api/execute/history: 3개 (200+list, 빈 리스트, 실행 후 1건)
+  - Step 30 회귀: 41개 PASSED (tests/test_orchestrator_decision.py) — 전부 유지
+  - Step 29 회귀: 53개 PASSED (tests/test_orchestrator_retry.py) — 전부 유지
   - Step 28 회귀: 64개 PASSED (tests/test_orchestrator_basic.py) — 전부 유지
