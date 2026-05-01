@@ -1654,6 +1654,46 @@ Badge Error       bg-red-500/20 text-red-400
 - 수정 파일: tests/test_coder_inspection.py (21개), tests/test_inspection_plan.py (24개), tests/test_vision_judge.py (20개)
 - 결과: 1324 passed, 9 skipped, 0 failed
 
+---
+
+### Step 29: Orchestrator Retry 로직 구현 (2026-05-01)
+
+**작업 결과:**
+- agents/orchestrator.py 확장: feedback_controller optional 파라미터 추가 (기존 13개 + 1)
+  - execute() 시작 시 feedback_controller.reset() 호출
+  - _run_from_stage(start_from, ...) 신규 메서드: 스테이지 순서 dict로 부분 파이프라인 재실행
+    - _STAGE_ORDER = {pipeline_composer:1, parameter_searcher:2, inspection_plan:3, algorithm_selector:4, algorithm_coder:5}
+    - start_stage <= N 조건으로 각 스테이지 실행 여부 결정
+    - image_analysis 스테이지 없음 — diagnosis는 execute() 레벨에서 한 번만 획득, 항상 재사용
+  - 재시도 루프: while not overall_passed and feedback_controller is not None
+    - current_iteration >= max_iter → WARNING 로그 후 break
+    - feedback_controller.execute(eval_result, best_judge) → FeedbackAction or None
+    - None이면 즉시 break (graceful degradation)
+    - target_agent == "spec_agent" → spec_agent 직접 재실행 후 restart_from = "pipeline_composer"로 변환
+    - iteration_history에 {iteration, failure_reason, target_agent, test_results_summary, judge_result_summary} 추가
+    - current_iteration 증가 후 _run_from_stage 호출
+  - 반환 dict에 "iteration_history" 키 추가 (기존 11개 → 12개)
+  - 모듈 레벨 함수: _summarize_test_results(), _summarize_judge_result()
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_orchestrator_retry.py (신규 — 53개 테스트)
+- agents/orchestrator.py (수정 — retry 로직 + _run_from_stage() 추출, feedback_controller 추가)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1377개 테스트 전체 GREEN (1377 passed, 9 warnings, 0 failed) — Ollama 통합 테스트 제외
+  - Step 29 신규: 53개 PASSED (tests/test_orchestrator_retry.py)
+    - FeedbackController reset 3개, iteration_history 8개
+    - max_iteration 5개, 재시도 성공 4개, current_iteration 추적 2개
+    - FeedbackController 인자 검증 4개
+    - 6개 target_agent 라우팅 (algorithm_coder 4개, algorithm_selector 4개, inspection_plan 3개, pipeline_composer 3개, parameter_searcher 2개, spec_agent 3개)
+    - align 모드 재시도 3개, image_analysis 미재실행 2개, 엣지 케이스 3개
+  - Step 28 회귀: 64개 PASSED (tests/test_orchestrator_basic.py) — 전부 유지
+
 ### Step 27: Decision Agent 구현 (EL/DL 판단) (2026-04-29)
 
 **작업 결과:**

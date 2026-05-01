@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 28 완료 / Step 29 대기
+## 현재 진행 단계: Step 29 완료 / Step 30 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -39,7 +39,7 @@
 - [x] Step 26: Feedback Controller (2026-04-29)
 - [x] Step 27: Decision Agent (EL/DL 판단) (2026-04-29)
 - [x] Step 28: Orchestrator (기본 파이프라인) (2026-04-30)
-- [ ] Step 29: Orchestrator Retry 로직
+- [x] Step 29: Orchestrator Retry 로직 (2026-05-01)
 - [ ] Step 30: Orchestrator → Decision Agent 연결
 - [ ] Step 31: 파이프라인 실행 API
 
@@ -974,3 +974,50 @@
 - 수정 내용: @pytest.mark.asyncio → @pytest.mark.anyio (replace_all), anyio_backend 픽스처 추가, import asyncio 제거 (사용하지 않음)
 - 수정 파일: tests/test_coder_inspection.py (21개), tests/test_inspection_plan.py (24개), tests/test_vision_judge.py (20개)
 - 결과: 1324 passed, 9 skipped, 0 failed (변동 없음 — 65개 failing → passing으로 전환)
+
+---
+
+### Step 29: Orchestrator Retry 로직 구현 (2026-05-01)
+
+**작업 결과:**
+- agents/orchestrator.py 확장: FeedbackController 의존성 주입 (optional, 기본값 None)
+  - 생성자에 `feedback_controller: Optional[FeedbackController] = None` 추가 — 기존 테스트 하위 호환 유지
+  - execute() 시작 시 feedback_controller.reset() 호출 (이전 실행 이력 초기화)
+  - current_iteration=1로 초기화, 재시도마다 증가
+- _run_from_stage() 신규 메서드: 스테이지 순서 기반 부분 파이프라인 재실행
+  - stage 1=pipeline_composer, 2=parameter_searcher, 3=inspection_plan, 4=algorithm_selector, 5=algorithm_coder
+  - image_analysis는 절대 재실행 안 함 — diagnosis는 항상 재사용
+  - start_from 파라미터로 재시작 지점 지정, 이전 스테이지 캐시 재사용
+- 재시도 루프: evaluation 실패 시 FeedbackController.execute() 호출 → FeedbackAction.target_agent에 따라 재시작
+  - "spec_agent" → spec 재실행 후 pipeline_composer부터 전체 재실행
+  - "pipeline_composer" → spec/image_analysis 스킵, 파이프라인 재구성
+  - "parameter_searcher" → composer 스킵, 기존 candidates에서 파라미터 재탐색
+  - "inspection_plan" → 파이프라인 스테이지 스킵, 검사 계획부터 재실행
+  - "algorithm_selector" → inspection_plan 스킵, 알고리즘 선택부터 재실행
+  - "algorithm_coder" → 모든 앞 단계 스킵, 코더만 재실행
+- max_iteration 준수: config.get("max_iteration", 5), 초과 시 WARNING 로그 후 status="failed"
+- iteration_history 누적: 재시도를 트리거한 실패 이터레이션마다 dict 기록
+  - 필드: iteration, failure_reason, target_agent, test_results_summary, judge_result_summary
+- 모듈 레벨 헬퍼 함수: _summarize_test_results(), _summarize_judge_result()
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_orchestrator_retry.py (신규 — 53개 테스트)
+- agents/orchestrator.py (수정 — retry 로직 + _run_from_stage 추출)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1377개 테스트 전체 GREEN (1377 passed, 9 warnings, 0 failed) — Ollama 통합 테스트 제외
+  - Step 29 신규: 53개 PASSED (tests/test_orchestrator_retry.py)
+    - FeedbackController reset 3개, iteration_history 8개
+    - max_iteration 5개, 재시도 성공 4개
+    - current_iteration 추적 2개, FeedbackController 인자 4개
+    - algorithm_coder 라우팅 4개, algorithm_selector 라우팅 4개
+    - inspection_plan 라우팅 3개, pipeline_composer 라우팅 3개
+    - parameter_searcher 라우팅 2개, spec_agent 라우팅 3개
+    - align 모드 재시도 3개, image_analysis 미재실행 2개
+    - 엣지 케이스 3개
+  - Step 28 회귀: 64개 PASSED (tests/test_orchestrator_basic.py) — 전부 유지
