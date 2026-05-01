@@ -1694,6 +1694,49 @@ Badge Error       bg-red-500/20 text-red-400
     - align 모드 재시도 3개, image_analysis 미재실행 2개, 엣지 케이스 3개
   - Step 28 회귀: 64개 PASSED (tests/test_orchestrator_basic.py) — 전부 유지
 
+### Step 30: Orchestrator → Decision Agent 연결 (2026-05-01)
+
+**작업 결과:**
+- agents/orchestrator.py 확장: decision_agent optional 파라미터 추가 (기존 14개 → 15개)
+  - `from agents.decision_agent import DecisionAgent` 및 `DecisionResult` 모델 import 추가
+  - 생성자에 `decision_agent: Optional[DecisionAgent] = None` 15번째 파라미터 추가 (backward compatible)
+  - `self._decision_agent = decision_agent` 저장
+  - execute() 내 retry 루프 직후 Decision Agent 호출 로직 삽입:
+    - 트리거 조건: `not evaluation_result.overall_passed AND current_iteration >= max_iter AND decision_agent is not None`
+    - 호출: `self._decision_agent.execute(iteration_history, spec_result.mode, best_judge, diagnosis)`
+    - 결과: INFO 레벨 로그 ("Decision made" + decision.value), `decision_result` 변수에 저장
+    - 비트리거 시: `decision_result = None`
+  - 반환 dict에 `"decision_result"` 키 추가 (기존 12개 → 13개)
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_orchestrator_decision.py (신규 — 41개 테스트)
+- agents/orchestrator.py (수정 — decision_agent 파라미터 + 호출 로직)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 1418개 테스트 전체 GREEN (1418 passed, 10 warnings, 0 failed) — Ollama 통합 테스트 제외
+  - Step 30 신규: 41개 PASSED (tests/test_orchestrator_decision.py)
+    - 생성자 4개: decision_agent 기본 None, 저장 확인, 14인자 역호환, 15번째 위치 인자
+    - 반환 dict 키 3개: decision_result 키 존재, 13개 키, 성공 시 None
+    - 미트리거 6개: overall_passed=True, no decision_agent, retry 성공, feedback_controller 없는 경우
+    - 트리거 5개: max_iter 소진, 정확히 1회 호출, DecisionResult 타입, max_iter=1, max_iter=5
+    - 인자 검증 5개: iteration_history, inspection 모드, align 모드, judge_result, image_diagnosis
+    - 반환값 4개: edge_learning, deep_learning, rule_based, 정확한 객체 동일성
+    - progress status 2개: failed 유지 확인
+    - 로깅 2개: INFO 로그 발생, 미트리거 시 decision_agent 미호출
+    - 예외 전파 2개: RuntimeError 전파, status=failed 유지
+    - history 내용 3개: max_iter=1 빈 history, max_iter=3 → 2건, max_iter=5 → 4건
+    - failure_reason 3개: pipeline_bad_fit, algorithm_wrong_category, spec_issue
+    - align 통합 2개: 트리거 확인, "align" 모드 문자열 전달
+  - Step 29 회귀: 53개 PASSED (tests/test_orchestrator_retry.py) — 전부 유지
+  - Step 28 회귀: 64개 PASSED (tests/test_orchestrator_basic.py) — 전부 유지
+
+---
+
 ### Step 27: Decision Agent 구현 (EL/DL 판단) (2026-04-29)
 
 **작업 결과:**

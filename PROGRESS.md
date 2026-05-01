@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 29 완료 / Step 30 대기
+## 현재 진행 단계: Step 30 완료 / Step 31 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -40,7 +40,7 @@
 - [x] Step 27: Decision Agent (EL/DL 판단) (2026-04-29)
 - [x] Step 28: Orchestrator (기본 파이프라인) (2026-04-30)
 - [x] Step 29: Orchestrator Retry 로직 (2026-05-01)
-- [ ] Step 30: Orchestrator → Decision Agent 연결
+- [x] Step 30: Orchestrator → Decision Agent 연결 (2026-05-01)
 - [ ] Step 31: 파이프라인 실행 API
 
 ## Phase 6: 프론트엔드

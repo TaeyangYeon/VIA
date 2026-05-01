@@ -10,6 +10,7 @@ from agents.algorithm_coder_inspection import AlgorithmCoderInspection
 from agents.algorithm_selector import AlgorithmSelector
 from agents.base_agent import BaseAgent
 from agents.code_validator import CodeValidator
+from agents.decision_agent import DecisionAgent
 from agents.evaluation_agent import EvaluationAgent
 from agents.feedback_controller import FeedbackController
 from agents.image_analysis_agent import ImageAnalysisAgent
@@ -18,6 +19,7 @@ from agents.models import (
     AgentDirectives,
     AlgorithmCategory,
     AlgorithmResult,
+    DecisionResult,
     EvaluationResult,
     ExecutionProgress,
     FailureReason,
@@ -62,6 +64,7 @@ class Orchestrator(BaseAgent):
         test_agent_align: TestAgentAlign,
         evaluation_agent: EvaluationAgent,
         feedback_controller: Optional[FeedbackController] = None,
+        decision_agent: Optional[DecisionAgent] = None,
     ) -> None:
         super().__init__("orchestrator")
         self._spec_agent = spec_agent
@@ -78,6 +81,7 @@ class Orchestrator(BaseAgent):
         self._test_agent_align = test_agent_align
         self._evaluation_agent = evaluation_agent
         self._feedback_controller = feedback_controller
+        self._decision_agent = decision_agent
         self._progress = ExecutionProgress(
             current_agent="", current_iteration=0, status="idle", message=""
         )
@@ -171,6 +175,20 @@ class Orchestrator(BaseAgent):
                         purpose_text, first_image, test_images,
                     )
 
+            decision_result: Optional[DecisionResult] = None
+            if (
+                not evaluation_result.overall_passed
+                and self._progress.current_iteration >= max_iter
+                and self._decision_agent is not None
+            ):
+                decision_result = self._decision_agent.execute(
+                    iteration_history,
+                    spec_result.mode,
+                    best_judge,
+                    diagnosis,
+                )
+                self._log("INFO", "Decision made", {"decision": decision_result.decision.value})
+
             if evaluation_result.overall_passed:
                 self._progress.status = "success"
                 self._progress.message = "파이프라인 성공"
@@ -194,6 +212,7 @@ class Orchestrator(BaseAgent):
                 "evaluation_result": evaluation_result,
                 "warnings": warnings,
                 "iteration_history": iteration_history,
+                "decision_result": decision_result,
             }
 
         except Exception as exc:
