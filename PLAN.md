@@ -1898,6 +1898,49 @@ Badge Error       bg-red-500/20 text-red-400
     - typed hooks: useAppSelector, useAppDispatch (2개) — Provider 통합
   - Step 33 회귀: 17개 PASS — 전부 유지
 
+### Step 35: API 클라이언트 서비스 (2026-05-03)
+
+**작업 결과:**
+- axios 인스턴스 생성: baseURL=http://localhost:8000, timeout=30000
+- frontend/src/services/types.ts: 모든 백엔드 Pydantic 모델 대응 TypeScript 인터페이스/타입 정의
+  - HealthResponse, ImageMeta, UploadImageResponse, ImageListResponse, DeleteImageResponse, ClearImagesResponse
+  - InspectionCriteria, AlignCriteria, ExecutionConfig, SaveConfigResponse
+  - AgentDirectives, DirectivesResponse, UpdateDirectiveResponse, ResetDirectivesResponse
+  - LogEntry, LogsResponse, LogAgentsResponse, ClearLogsResponse
+  - StartExecutionRequest/Response, ExecutionStatus, ExecutionHistoryResponse, CancelExecutionResponse
+- frontend/src/services/api.ts: 전체 엔드포인트 커버하는 typed async 함수 20개
+  - Health: checkHealth
+  - Images: uploadImage, getImages, getImage, deleteImage, clearImages
+  - Config: saveConfig, getConfig
+  - Directives: getDirectives, saveDirectives, updateDirective, resetDirectives
+  - Logs: getLogs, getLogAgents, clearLogs
+  - Execute: startExecution(timeout=600000), getExecutionStatus, getExecutionHistory, cancelExecution
+
+**발생 이슈:**
+- vitest v4에서 `mock*` 변수 자동 호이스팅 제거됨 → `vi.hoisted()`로 해결
+
+**생성/수정 파일:**
+- frontend/src/services/types.ts (신규)
+- frontend/src/services/api.ts (신규)
+- frontend/src/__tests__/api.test.ts (신규)
+- frontend/package.json (수정 — axios 추가)
+- PLAN.md (수정 — Part 5 Step 35 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 91개 전체 PASS (vitest run)
+  - Step 35 신규: 27개 PASSED
+    - axios instance config: 2개 (baseURL, timeout)
+    - Health API: 1개 (checkHealth)
+    - Images API: 7개 (uploadImage, getImages×2, getImage, deleteImage, clearImages×2)
+    - Config API: 2개 (saveConfig, getConfig)
+    - Directives API: 4개 (getDirectives, saveDirectives, updateDirective, resetDirectives)
+    - Logs API: 4개 (getLogs×2, getLogAgents, clearLogs)
+    - Execute API: 4개 (startExecution+timeout검증, getExecutionStatus, getExecutionHistory, cancelExecution)
+    - Error handling: 3개 (network error, 404, 500)
+  - Step 34 회귀: 47개 PASS — 전부 유지
+  - Step 33 회귀: 17개 PASS — 전부 유지
+
 ---
 
 ### Step 27: Decision Agent 구현 (EL/DL 판단) (2026-04-29)

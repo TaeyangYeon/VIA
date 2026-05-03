@@ -1108,3 +1108,33 @@
     - directivesSlice (5개), executionSlice (11개), resultSlice (5개), logsSlice (5개)
     - typed hooks Provider 통합 (2개)
   - Step 33 회귀: 17개 PASS — 전부 유지
+---
+
+## Step 35: API 클라이언트 서비스 (2026-05-03)
+
+**작업 결과:**
+- axios 기반 API 클라이언트 서비스 레이어 구현 (순수 서비스 레이어, Redux/UI 미포함)
+- types.ts: 백엔드 Pydantic 모델 완전 대응 TypeScript 타입 22종
+- api.ts: 모든 엔드포인트 커버 async 함수 20개
+  - Health / Images / Config / Directives / Logs / Execute
+  - startExecution만 timeout=600000 override (나머지 30000 기본값)
+
+**발생 이슈:**
+- vitest v4에서 `mock*` 변수 자동 호이스팅 제거됨 → `vi.hoisted()` API로 해결
+
+**생성/수정 파일:**
+- frontend/src/services/types.ts (신규)
+- frontend/src/services/api.ts (신규)
+- frontend/src/__tests__/api.test.ts (신규)
+- frontend/package.json (수정 — axios ^1.16.0 추가)
+- PLAN.md (수정 — Part 5 Step 35 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 91개 전체 GREEN (vitest run, 0 failed)
+  - Step 35 신규: 27개 PASSED
+    - axios instance config (2개), Health (1개), Images (7개)
+    - Config (2개), Directives (4개), Logs (4개)
+    - Execute (4개), Error handling (3개)
+  - Step 34 회귀: 47개 PASS — 전부 유지
+  - Step 33 회귀: 17개 PASS — 전부 유지
