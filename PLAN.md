@@ -1848,6 +1848,58 @@ Badge Error       bg-red-500/20 text-red-400
 
 ---
 
+### Step 34: Redux Store 초기화 (2026-05-03)
+
+**작업 결과:**
+- npm 설치 패키지:
+  - dependencies: @reduxjs/toolkit ^2.11.2, react-redux ^9.2.0
+- 7개 slice 구현 (frontend/src/store/slices/):
+  - projectSlice: name/created_at, setProjectName/setCreatedAt/resetProject
+  - imagesSlice: analysis[]/test[] ImageMeta 배열, addImage/removeImage/clearImagesByPurpose/resetImages
+  - configSlice: mode/max_iteration/success_criteria, setMode/setMaxIteration/setSuccessCriteria/resetConfig
+  - directivesSlice: 8개 에이전트 지시자 필드, setDirective/setAllDirectives/resetDirectives
+  - executionSlice: status/execution_id/current_agent/current_iteration/goal_validation/progress, 전체 set 액션 + addGoalValidation/resetExecution
+  - resultSlice: 10개 결과 필드 (any 허용 4개), setResult/updateResult/resetResult
+  - logsSlice: entries LogEntry[], addLogEntry/clearLogs
+- store/index.ts: configureStore 7개 reducer 합산, RootState/AppDispatch 타입 export
+- store/hooks.ts: useAppSelector/useAppDispatch 타입 훅
+- main.tsx 수정: `<Provider store={store}>` 래핑
+
+**발생 이슈:**
+- 없음 (첫 시도 전체 PASS)
+
+**생성/수정 파일:**
+- frontend/src/store/slices/projectSlice.ts (신규)
+- frontend/src/store/slices/imagesSlice.ts (신규)
+- frontend/src/store/slices/configSlice.ts (신규)
+- frontend/src/store/slices/directivesSlice.ts (신규)
+- frontend/src/store/slices/executionSlice.ts (신규)
+- frontend/src/store/slices/resultSlice.ts (신규)
+- frontend/src/store/slices/logsSlice.ts (신규)
+- frontend/src/store/index.ts (신규)
+- frontend/src/store/hooks.ts (신규)
+- frontend/src/main.tsx (수정 — Provider 래핑)
+- frontend/src/__tests__/store.test.ts (신규)
+- frontend/package.json (수정 — @reduxjs/toolkit, react-redux 추가)
+- PLAN.md (수정 — Part 5 Step 34 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 64개 전체 PASS (vitest run)
+  - Step 34 신규: 47개 PASSED
+    - store shape: 7개 slice 키 (1개)
+    - projectSlice: initial state, setProjectName, resetProject, selectProject (4개)
+    - imagesSlice: initial state, addImage×2, removeImage, clearImagesByPurpose, resetImages, selectAnalysisImages, selectTestImages (8개)
+    - configSlice: initial state, setMode×2, setMaxIteration, setSuccessCriteria, resetConfig, selectConfig (7개)
+    - directivesSlice: initial state, setDirective, setAllDirectives, resetDirectives, selectDirectives (5개)
+    - executionSlice: initial state, status 전환×3, setCurrentAgent, setCurrentIteration, addGoalValidation, setProgress, resetExecution, selectExecution (11개)
+    - resultSlice: initial state, setResult, updateResult, resetResult, selectResult (5개)
+    - logsSlice: initial state, addLogEntry×2, clearLogs, selectLogs (5개)
+    - typed hooks: useAppSelector, useAppDispatch (2개) — Provider 통합
+  - Step 33 회귀: 17개 PASS — 전부 유지
+
+---
+
 ### Step 27: Decision Agent 구현 (EL/DL 판단) (2026-04-29)
 
 **작업 결과:**

@@ -1070,3 +1070,41 @@
   - Step 30 회귀: 41개 PASSED (tests/test_orchestrator_decision.py) — 전부 유지
   - Step 29 회귀: 53개 PASSED (tests/test_orchestrator_retry.py) — 전부 유지
   - Step 28 회귀: 64개 PASSED (tests/test_orchestrator_basic.py) — 전부 유지
+
+---
+
+### Step 34: Redux Store 초기화 (2026-05-03)
+
+**작업 결과:**
+- @reduxjs/toolkit ^2.11.2, react-redux ^9.2.0 설치
+- 7개 slice 구현: projectSlice, imagesSlice, configSlice, directivesSlice, executionSlice, resultSlice, logsSlice
+- store/index.ts: configureStore + RootState/AppDispatch export
+- store/hooks.ts: useAppSelector/useAppDispatch 타입 훅
+- main.tsx: `<Provider store={store}>` 래핑
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- frontend/src/store/slices/projectSlice.ts (신규)
+- frontend/src/store/slices/imagesSlice.ts (신규)
+- frontend/src/store/slices/configSlice.ts (신규)
+- frontend/src/store/slices/directivesSlice.ts (신규)
+- frontend/src/store/slices/executionSlice.ts (신규)
+- frontend/src/store/slices/resultSlice.ts (신규)
+- frontend/src/store/slices/logsSlice.ts (신규)
+- frontend/src/store/index.ts (신규)
+- frontend/src/store/hooks.ts (신규)
+- frontend/src/main.tsx (수정 — Provider 래핑)
+- frontend/src/__tests__/store.test.ts (신규)
+- frontend/package.json (수정 — @reduxjs/toolkit, react-redux 추가)
+- PLAN.md (수정 — Part 5 Step 34 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 64개 전체 GREEN (vitest run, 0 failed) — 프론트엔드 전용
+  - Step 34 신규: 47개 PASSED
+    - store shape (1개), projectSlice (4개), imagesSlice (8개), configSlice (7개)
+    - directivesSlice (5개), executionSlice (11개), resultSlice (5개), logsSlice (5개)
+    - typed hooks Provider 통합 (2개)
+  - Step 33 회귀: 17개 PASS — 전부 유지
