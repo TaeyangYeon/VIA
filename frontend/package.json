@@ -1,0 +1,32 @@
+{
+  "name": "via-frontend",
+  "version": "0.1.0",
+  "description": "VIA — Vision Intelligence Agent desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "test": "node test_electron.js",
+    "dev": "electron ."
+  },
+  "keywords": [],
+  "author": "TaeyangYeon",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.via.app",
+    "productName": "VIA",
+    "mac": {
+      "target": "dmg",
+      "arch": ["x64"]
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "dist/**/*"
+    ]
+  }
+}
