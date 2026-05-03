@@ -1766,6 +1766,47 @@ Badge Error       bg-red-500/20 text-red-400
 
 ---
 
+### Step 32: Electron 프로젝트 초기화 (2026-05-03)
+
+**작업 결과:**
+- `frontend/package.json` 신규 생성:
+  - name: "via-frontend", version: "0.1.0", main: "main.js"
+  - scripts: start(electron .), build(electron-builder), test(node test_electron.js), dev(electron .)
+  - devDependencies: electron ^35.0.0, electron-builder ^25.0.0
+  - build 설정: appId "com.via.app", mac x64 dmg 타겟
+- `frontend/main.js` 신규 생성:
+  - BrowserWindow: 1400x900, minWidth 900, minHeight 600, backgroundColor '#0a0a0a', title 'VIA — Vision Intelligence Agent'
+  - webPreferences: nodeIntegration false, contextIsolation true, preload path.join(__dirname, 'preload.js'), sandbox false
+  - IS_DEV(NODE_ENV !== 'production'): localhost:5173 로드 → 실패 시 dist/index.html → 최종 fallback 안내 페이지
+  - app.on('ready'), app.on('window-all-closed'), app.on('activate') 핸들러
+  - ipcMain.handle('via:ping') IPC placeholder
+- `frontend/preload.js` 신규 생성:
+  - contextBridge.exposeInMainWorld('via', {...})
+  - 노출 API: platform, versions(electron/node/chrome), ping()
+- `frontend/test_electron.js` 신규 생성 (TDD 검증 스크립트)
+
+**발생 이슈:**
+- npm install 시 일부 deprecated 패키지 경고 (are-we-there-yet, gauge, glob 구버전 등) — electron-builder 내부 의존성이며 기능에 영향 없음
+- npm audit 12 vulnerabilities (2 low, 10 high) — electron-builder 빌드 툴 의존성, 런타임 무관
+
+**생성/수정 파일:**
+- frontend/package.json (신규)
+- frontend/main.js (신규)
+- frontend/preload.js (신규)
+- frontend/test_electron.js (신규)
+- PLAN.md (수정 — Part 5 Step 32 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 29개 전체 PASS (node test_electron.js)
+  - package.json: 9개 (파일 존재, name, version, main, scripts.start/build/test, electron/electron-builder 의존성)
+  - main.js: 12개 (존재, 구문, BrowserWindow, 1400x900, #0a0a0a, VIA 타이틀, nodeIntegration false, contextIsolation true, preload, localhost:5173, window-all-closed, activate)
+  - preload.js: 6개 (존재, 구문, contextBridge, via 네임스페이스, platform, versions)
+  - npm 패키지: 2개 (electron 설치, electron-builder 설치)
+- 설치된 버전: electron 35.7.5, electron-builder 25.1.8
+
+---
+
 ### Step 27: Decision Agent 구현 (EL/DL 판단) (2026-04-29)
 
 **작업 결과:**
