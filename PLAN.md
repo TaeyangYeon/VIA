@@ -2134,3 +2134,51 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 34 회귀: 47개 PASS — 전부 유지
   - Step 33 회귀: 17개 PASS — 전부 유지
     - BaseAgent: abstract 3, properties 5, logging 3
+
+### Step 37: Directive Panel UI (2026-05-04)
+
+**작업 결과:**
+- DirectivePanel.tsx: 8개 에이전트 카드 아코디언 패널 구현
+  - 카드 목록: 오케스트레이터, 스펙 에이전트, 이미지 분석, 파이프라인 구성, 비전 판정, 검사 설계, 알고리즘 코더, 테스트 에이전트
+  - 각 카드: lucide-react 아이콘 + 한글명 + 영문 key(monospace) + 한줄 설명
+  - 아코디언: 한 번에 하나만 펼침. 클릭 시 토글. data-testid="card-{key}"
+  - textarea: placeholder="에이전트가 자동으로 판단합니다...", onChange → dispatch setDirective({key, value: str || null})
+  - 지시문 있을 때: indicator dot(accent_success) + 최대 50자 truncated preview
+  - Save All: saveDirectives API 호출, save-success / save-error 인라인 피드백
+  - Reset All: resetDirectives API 호출 후 dispatch resetDirectivesAction(), reset-error 표시
+  - 마운트 시: getDirectives() → dispatch setAllDirectives → isLoading=false
+  - 로딩: data-testid="directives-loading" 전체화면 표시
+  - 로드 에러: data-testid="load-error" 전체화면 표시
+  - 빈 상태: 모든 지시문 null이면 data-testid="empty-state" 배너 표시
+  - 디자인: glass morphism (bg-white/5 backdrop-blur-sm border-white/10), 다크 테마 전용
+- Layout.tsx: activePanel === 'Directive'일 때 DirectivePanel 렌더링으로 교체
+
+**발생 이슈:**
+- getDirectives mock이 beforeEach마다 설정되지만 vi.clearAllMocks()가 없어 테스트 간 call count 누적 → afterEach에 vi.clearAllMocks() 추가로 해결
+- 각 describe 내 테스트에서 preloaded Redux state와 getDirectives mock 반환값이 충돌 → 모든 directive 값 의존 테스트에서 preloaded state 대신 getDirectives mockResolvedValueOnce로 초기화하도록 수정
+
+**생성/수정 파일:**
+- frontend/src/__tests__/DirectivePanel.test.tsx (신규)
+- frontend/src/components/panels/DirectivePanel.tsx (신규)
+- frontend/src/components/Layout.tsx (수정 — DirectivePanel import 및 렌더링 추가)
+- PLAN.md (수정 — Part 5 Step 37 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 181개 전체 GREEN (vitest run, 0 failed)
+  - Step 37 신규: 33개 PASSED
+    - rendering: 10개 (8개 한글 카드명, Save/Reset 버튼)
+    - collapse/expand: 4개 (기본 숨김, 클릭 펼침, 재클릭 접기, 아코디언)
+    - textarea: 1개 (placeholder 텍스트)
+    - directive input: 2개 (타이핑 store 업데이트, 빈값 null 처리)
+    - directive indicator: 2개 (지시문 있을 때 dot 표시, null 때 미표시)
+    - truncated preview: 2개 (50자 초과 truncate, 짧은 텍스트 전체 표시)
+    - Save All: 3개 (API 호출, 성공 피드백, 에러 표시)
+    - Reset All: 3개 (API 호출, store 초기화, 에러 표시)
+    - loading state: 1개 (API 대기 중 로딩 표시)
+    - initial load: 3개 (getDirectives 호출, setAllDirectives dispatch, 에러 처리)
+    - empty state: 2개 (indicator 없음, empty-state 배너)
+  - Step 36 회귀: 57개 PASS — 전부 유지
+  - Step 35 회귀: 27개 PASS — 전부 유지
+  - Step 34 회귀: 47개 PASS — 전부 유지
+  - Step 33 회귀: 17개 PASS — 전부 유지

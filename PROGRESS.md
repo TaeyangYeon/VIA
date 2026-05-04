@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 36 완료 / Step 37 대기
+## 현재 진행 단계: Step 37 완료 / Step 38 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -49,8 +49,7 @@
 - [x] Step 34: Redux Store 초기화 (directives 포함) (2026-05-03) — 7 slices, 47 tests PASS
 - [x] Step 35: API 클라이언트 서비스 (2026-05-03) — axios, 20 functions, 27 tests PASS
 - [x] Step 36: 전체 레이아웃 + Input Panel (2026-05-04) — Layout + InputPanel, 57 tests PASS
-- [ ] Step 37: Directive Panel UI
-- [ ] Step 37: Directive Panel UI
+- [x] Step 37: Directive Panel UI (2026-05-04) — 8-agent accordion panel, 33 tests PASS
 - [ ] Step 38: Config Panel + Execution Panel
 - [ ] Step 39: Result Panel (파이프라인 시각화 포함)
 - [ ] Step 40: 로그 패널 + UI-API 통합 테스트
@@ -1175,6 +1174,40 @@
   - Step 36 신규: 57개 PASSED
     - Layout.test.tsx 24개: sidebar(7) + default(3) + switching(3) + active(3) + workspace(1) + 기타(7)
     - InputPanel.test.tsx 33개: validateFilename(11) + rendering(6) + empty(4) + validation(3) + upload(5) + thumbnail(4) + delete(2) + clear(3) + drag&drop(2) — (일부 중복 포함)
+  - Step 35 회귀: 27개 PASS — 전부 유지
+  - Step 34 회귀: 47개 PASS — 전부 유지
+  - Step 33 회귀: 17개 PASS — 전부 유지
+
+## Step 37: Directive Panel UI (2026-05-04)
+
+**작업 결과:**
+- DirectivePanel.tsx: 8개 에이전트 아코디언 카드 패널
+  - 카드: 오케스트레이터/스펙 에이전트/이미지 분석/파이프라인 구성/비전 판정/검사 설계/알고리즘 코더/테스트 에이전트
+  - 아코디언: 한 번에 하나만 펼침. data-testid="card-{key}"
+  - textarea: data-testid="textarea-{key}", onChange → dispatch setDirective({key, value: str || null})
+  - 지시문 있을 때: indicator dot(data-testid="indicator-{key}") + 50자 truncated preview(data-testid="preview-{key}")
+  - Save All(data-testid="save-all-btn"): saveDirectives API → save-success / save-error 인라인 피드백
+  - Reset All(data-testid="reset-all-btn"): resetDirectives API + dispatch resetDirectivesAction() → reset-error 표시
+  - 마운트: getDirectives() → setAllDirectives dispatch. 로딩 중: data-testid="directives-loading". 에러: data-testid="load-error"
+  - 전체 null 시: data-testid="empty-state" 배너 표시
+- Layout.tsx: 'Directive' 패널 → DirectivePanel 렌더링
+
+**발생 이슈:**
+- 테스트 간 getDirectives mock call count 누적 → afterEach에 vi.clearAllMocks() 추가로 해결
+- preloaded Redux state와 getDirectives mock 반환값 충돌 → directive 값 의존 테스트에서 mockResolvedValueOnce로 초기 상태 설정
+
+**생성/수정 파일:**
+- frontend/src/__tests__/DirectivePanel.test.tsx (신규)
+- frontend/src/components/panels/DirectivePanel.tsx (신규)
+- frontend/src/components/Layout.tsx (수정 — DirectivePanel 연결)
+- PLAN.md (수정 — Part 5 Step 37 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 181개 전체 GREEN (vitest run, 0 failed)
+  - Step 37 신규: 33개 PASSED
+    - rendering(10) + collapse/expand(4) + textarea(1) + input(2) + indicator(2) + preview(2) + save-all(3) + reset-all(3) + loading(1) + initial-load(3) + empty-state(2)
+  - Step 36 회귀: 57개 PASS — 전부 유지
   - Step 35 회귀: 27개 PASS — 전부 유지
   - Step 34 회귀: 47개 PASS — 전부 유지
   - Step 33 회귀: 17개 PASS — 전부 유지

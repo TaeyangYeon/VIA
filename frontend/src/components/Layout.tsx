@@ -17,6 +17,7 @@ import {
   text_secondary,
 } from '../styles/design-tokens';
 import InputPanel from './panels/InputPanel';
+import DirectivePanel from './panels/DirectivePanel';
 
 type PanelName = 'Input' | 'Directive' | 'Config' | 'Execution' | 'Result' | 'Log';
 
@@ -46,6 +47,7 @@ export default function Layout() {
 
   const renderPanel = () => {
     if (activePanel === 'Input') return <InputPanel />;
+    if (activePanel === 'Directive') return <DirectivePanel />;
     return <PlaceholderPanel name={activePanel} />;
   };
 
