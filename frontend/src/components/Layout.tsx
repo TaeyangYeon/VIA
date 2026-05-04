@@ -18,6 +18,8 @@ import {
 } from '../styles/design-tokens';
 import InputPanel from './panels/InputPanel';
 import DirectivePanel from './panels/DirectivePanel';
+import ConfigPanel from './panels/ConfigPanel';
+import ExecutionPanel from './panels/ExecutionPanel';
 
 type PanelName = 'Input' | 'Directive' | 'Config' | 'Execution' | 'Result' | 'Log';
 
@@ -48,6 +50,8 @@ export default function Layout() {
   const renderPanel = () => {
     if (activePanel === 'Input') return <InputPanel />;
     if (activePanel === 'Directive') return <DirectivePanel />;
+    if (activePanel === 'Config') return <ConfigPanel />;
+    if (activePanel === 'Execution') return <ExecutionPanel />;
     return <PlaceholderPanel name={activePanel} />;
   };
 

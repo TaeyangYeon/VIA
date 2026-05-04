@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 37 완료 / Step 38 대기
+## 현재 진행 단계: Step 38 완료 / Step 39 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -50,7 +50,7 @@
 - [x] Step 35: API 클라이언트 서비스 (2026-05-03) — axios, 20 functions, 27 tests PASS
 - [x] Step 36: 전체 레이아웃 + Input Panel (2026-05-04) — Layout + InputPanel, 57 tests PASS
 - [x] Step 37: Directive Panel UI (2026-05-04) — 8-agent accordion panel, 33 tests PASS
-- [ ] Step 38: Config Panel + Execution Panel
+- [x] Step 38: Config Panel + Execution Panel (2026-05-04)
 - [ ] Step 39: Result Panel (파이프라인 시각화 포함)
 - [ ] Step 40: 로그 패널 + UI-API 통합 테스트
 

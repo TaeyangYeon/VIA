@@ -2135,6 +2135,64 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 33 회귀: 17개 PASS — 전부 유지
     - BaseAgent: abstract 3, properties 5, logging 3
 
+### Step 38: Config Panel + Execution Panel (2026-05-04)
+
+**작업 결과:**
+- ConfigPanel.tsx: Config 설정 패널 구현
+  - Mode Toggle: inspection / align 버튼 (활성 버튼: bg_secondary + text_primary 강조)
+  - Max Iteration: number input, 1–20 범위 유효성 검사 후 dispatch setMaxIteration
+  - Success Criteria 폼: inspection 모드(accuracy/fp_rate/fn_rate), align 모드(coord_error/success_rate) 전환
+  - 모드 전환 시 해당 모드 기본값으로 criteria 초기화
+  - Save Config 버튼: saveConfig API 호출, loading/success/error 인라인 피드백
+  - Extreme Goal Warnings: API 반환 warnings → warnings-container에 AlertTriangle 아이콘과 함께 표시
+  - 마운트 시: getConfig() → dispatch setMode/setMaxIteration/setSuccessCriteria. 404는 무시(기본값 유지)
+  - 디자인: glass morphism, 다크 테마 전용
+- ExecutionPanel.tsx: 실행 제어 패널 구현
+  - Purpose Textarea: 검사 목적 입력, 비어있을 때 start-btn 비활성화
+  - Start 버튼: startExecution(purposeText) API 호출 → dispatch setExecutionId + setExecutionStatus('running')
+  - Cancel 버튼: status='running'일 때만 표시, cancelExecution(id) → dispatch setExecutionStatus('failed')
+  - 실행 상태 표시: status-badge, current-agent, current-iteration
+  - Polling: status='running'이면 setInterval 2초마다 getExecutionStatus 호출 → Redux 업데이트, 비실행 상태 전환 시 clearInterval
+  - Idle 상태: execution_id가 null이면 idle-state 메시지 표시
+  - Success/Failed 결과: success-message / error-message 표시
+- Layout.tsx: activePanel === 'Config' 및 'Execution'일 때 실제 컴포넌트 렌더링으로 교체
+
+**발생 이슈:**
+- vi.hoisted()를 사용한 mock 변수 선언 적용 (Vitest v4 요건)
+- 폴링 테스트에서 vi.useFakeTimers() + await act(async () => { vi.advanceTimersByTime(2000); await Promise.resolve(); }) 패턴으로 비동기 interval 콜백 처리
+- preloadedState를 활용한 execution 상태 사전 설정으로 cancel/status/result 테스트 간결화
+
+**생성/수정 파일:**
+- frontend/src/__tests__/ConfigPanel.test.tsx (신규)
+- frontend/src/__tests__/ExecutionPanel.test.tsx (신규)
+- frontend/src/components/panels/ConfigPanel.tsx (신규)
+- frontend/src/components/panels/ExecutionPanel.tsx (신규)
+- frontend/src/components/Layout.tsx (수정 — ConfigPanel/ExecutionPanel import 및 렌더링 추가)
+- PLAN.md (수정 — Part 5 Step 38 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 224개 전체 GREEN (vitest run, 0 failed)
+  - Step 38 신규: 43개 PASSED
+    - ConfigPanel — rendering: 4개 (mode 토글, max-iteration, save-btn, 검사 criteria 필드)
+    - ConfigPanel — load on mount: 3개 (getConfig 호출, Redux dispatch, 404 무시)
+    - ConfigPanel — mode toggle: 4개 (기본 inspection, align dispatch, align criteria 표시, inspection criteria 숨김)
+    - ConfigPanel — max iteration: 3개 (유효 범위 dispatch, 최솟값 미만 무시, 최댓값 초과 무시)
+    - ConfigPanel — success criteria: 2개 (accuracy 변경, fp_rate 변경)
+    - ConfigPanel — save config: 4개 (API 호출, loading 표시, success 표시, error 표시)
+    - ConfigPanel — extreme goal warnings: 2개 (warnings 표시, 빈 warnings 미표시)
+    - ExecutionPanel — rendering: 5개 (textarea, start-btn, idle-state, disabled when empty, enabled with text)
+    - ExecutionPanel — start execution: 4개 (API 호출, setExecutionId dispatch, status running, btn disabled when running)
+    - ExecutionPanel — cancel execution: 4개 (idle 미표시, running 표시, cancelExecution 호출, status failed)
+    - ExecutionPanel — status display: 3개 (status-badge, current-agent, current-iteration)
+    - ExecutionPanel — result/error: 2개 (success-message, error-message)
+    - ExecutionPanel — polling: 3개 (2초마다 호출, Redux 업데이트, success 시 폴링 중단)
+  - Step 37 회귀: 33개 PASS — 전부 유지
+  - Step 36 회귀: 57개 PASS — 전부 유지
+  - Step 35 회귀: 27개 PASS — 전부 유지
+  - Step 34 회귀: 47개 PASS — 전부 유지
+  - Step 33 회귀: 17개 PASS — 전부 유지
+
 ### Step 37: Directive Panel UI (2026-05-04)
 
 **작업 결과:**
