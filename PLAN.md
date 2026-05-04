@@ -2241,3 +2241,67 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 35 회귀: 27개 PASS — 전부 유지
   - Step 34 회귀: 47개 PASS — 전부 유지
   - Step 33 회귀: 17개 PASS — 전부 유지
+
+### Step 39: Result Panel (2026-05-04)
+
+**작업 결과:**
+- MetricsChart.tsx: CSS 기반 그룹 막대 차트 컴포넌트 구현
+  - Props: item_results: ItemTestResult[]
+  - 빈 상태: data-testid="metrics-chart-empty", BarChart2 아이콘 + "No metrics data"
+  - 범례: accuracy(accent_success)/fp_rate(accent_error)/fn_rate(accent_warning) 색상 사각형 + 레이블
+  - 막대 그룹(data-testid="metrics-bar-group-{i}"): 아이템별 3색 막대, 높이=비율×CHART_HEIGHT(120px)
+  - 아이템명 레이블: truncate + title tooltip
+  - recharts 미설치 확인 → 순수 CSS/HTML 구현
+- PipelineViewer.tsx: 파이프라인 블록 흐름 다이어그램 구현
+  - Props: pipeline: Pipeline | null
+  - 빈 상태: data-testid="pipeline-empty", GitBranch 아이콘 + "No pipeline data"
+  - 수평 흐름: 블록 카드(data-testid="pipeline-block-{i}") + → 화살표 연결
+  - 각 블록 카드: name(bold) + category badge(data-testid="pipeline-category-badge-{i}") + params(key=value)
+  - 카테고리 색상: color_space=accent_info, noise_reduction=accent_success, threshold=accent_warning, morphology=#c084fc, edge=accent_error
+  - Glass morphism 카드: bg-white/5 backdrop-blur-sm border border_default
+- ResultPanel.tsx: 메인 결과 패널 구현
+  - Redux store에서 selectResult로 읽기 (컴포넌트 자체 fetch 없음)
+  - 빈 상태: data-testid="empty-state", BarChart2 아이콘 + "실행 결과가 여기에 표시됩니다"
+  - 데이터 있을 때: summary 헤더(data-testid="summary-text") + 4개 탭
+  - Code 탭(기본): pre/code 블록(data-testid="code-block"), 라인 번호, Python 키워드 하이라이팅(CodeLine 컴포넌트 — React 요소 기반 토크나이저, dangerouslySetInnerHTML 미사용), algorithm_explanation(data-testid="algorithm-explanation")
+  - Metrics 탭: MetricsChart + 아이템별 테이블(item_name/passed/accuracy/fp_rate/fn_rate)
+  - Pipeline 탭: PipelineViewer 컴포넌트 래핑(data-testid="pipeline-section")
+  - Decision 탭: decision-badge(색상: RULE_BASED=accent_info, EDGE_LEARNING=accent_warning, DEEP_LEARNING=accent_error) + decision-reason + suggestions-list
+- Layout.tsx: 'Result' 패널 → ResultPanel 렌더링으로 교체
+
+**발생 이슈:**
+- recharts가 package.json에 없고 node_modules에도 미설치 → 순수 CSS/HTML 막대 차트로 대체 (spec의 "recharts available" 정보와 불일치)
+- Python 키워드 하이라이팅 시 dangerouslySetInnerHTML 미사용 — 백엔드 AI 코드라도 XSS 보안 원칙 준수. 대신 regex 토크나이저(CodeLine 컴포넌트)로 React 요소 직접 생성
+
+**생성/수정 파일:**
+- frontend/src/__tests__/ResultPanel.test.tsx (신규)
+- frontend/src/__tests__/MetricsChart.test.tsx (신규)
+- frontend/src/__tests__/PipelineViewer.test.tsx (신규)
+- frontend/src/components/panels/ResultPanel.tsx (신규)
+- frontend/src/components/MetricsChart.tsx (신규)
+- frontend/src/components/PipelineViewer.tsx (신규)
+- frontend/src/components/Layout.tsx (수정 — ResultPanel import 및 렌더링 추가)
+- PLAN.md (수정 — Part 5 Step 39 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 272개 전체 GREEN (vitest run, 0 failed)
+  - Step 39 신규: 47개 PASSED
+    - ResultPanel — empty state: 3개 (empty-state 표시, 메시지 확인, 탭 미표시)
+    - ResultPanel — summary: 2개 (summary 텍스트, empty-state 미표시)
+    - ResultPanel — code section: 4개 (tab-code 렌더, code-block 기본 표시, 코드 내용, explanation)
+    - ResultPanel — metrics section: 4개 (tab-metrics 렌더, 클릭 시 metrics-section, item명, code-block 사라짐)
+    - ResultPanel — pipeline section: 3개 (tab-pipeline 렌더, 클릭 시 pipeline-section, 블록명)
+    - ResultPanel — decision section: 7개 (tab-decision, decision-section, badge, reason, suggestions, EDGE_LEARNING, DEEP_LEARNING)
+    - ResultPanel — tab switching: 2개 (Code로 복귀, 4탭 전환 에러 없음)
+    - MetricsChart — empty state: 3개 (빈 배열, null, metrics-chart 미표시)
+    - MetricsChart — chart rendering: 5개 (wrapper, item명, bar-group-0/1, legend labels, 단일 아이템)
+    - PipelineViewer — empty state: 3개 (null, 빈 blocks, pipeline-viewer 미표시)
+    - PipelineViewer — block rendering: 6개 (wrapper, 3개 블록 카드, 블록명x2, category badge, params)
+    - PipelineViewer — all category types: 5개 (color_space/noise_reduction/threshold/morphology/edge)
+  - Step 38 회귀: 44개 PASS — 전부 유지
+  - Step 37 회귀: 33개 PASS — 전부 유지
+  - Step 36 회귀: 57개 PASS — 전부 유지
+  - Step 35 회귀: 27개 PASS — 전부 유지
+  - Step 34 회귀: 47개 PASS — 전부 유지
+  - Step 33 회귀: 17개 PASS — 전부 유지

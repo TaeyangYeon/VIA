@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 38 완료 / Step 39 대기
+## 현재 진행 단계: Step 39 완료 / Step 40 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -50,8 +50,8 @@
 - [x] Step 35: API 클라이언트 서비스 (2026-05-03) — axios, 20 functions, 27 tests PASS
 - [x] Step 36: 전체 레이아웃 + Input Panel (2026-05-04) — Layout + InputPanel, 57 tests PASS
 - [x] Step 37: Directive Panel UI (2026-05-04) — 8-agent accordion panel, 33 tests PASS
-- [x] Step 38: Config Panel + Execution Panel (2026-05-04)
-- [ ] Step 39: Result Panel (파이프라인 시각화 포함)
+- [x] Step 38: Config Panel + Execution Panel (2026-05-04) — ConfigPanel + ExecutionPanel, 44 tests PASS
+- [x] Step 39: Result Panel (2026-05-04) — ResultPanel + MetricsChart + PipelineViewer, 47 tests PASS
 - [ ] Step 40: 로그 패널 + UI-API 통합 테스트
 
 ## Phase 7: 통합 & E2E
@@ -1211,3 +1211,75 @@
   - Step 35 회귀: 27개 PASS — 전부 유지
   - Step 34 회귀: 47개 PASS — 전부 유지
   - Step 33 회귀: 17개 PASS — 전부 유지
+
+## Step 38: Config Panel + Execution Panel (2026-05-04)
+
+**작업 결과:**
+- ConfigPanel.tsx: Mode 토글(inspection/align), Max Iteration(1-20), Success Criteria 폼, Save Config(API + loading/success/error), Extreme Goal Warnings
+- ExecutionPanel.tsx: Purpose textarea, Start/Cancel 버튼, Polling(2초), status/agent/iteration 표시, success/error 메시지
+- Layout.tsx: Config/Execution 패널 연결
+
+**발생 이슈:**
+- vi.hoisted() mock 변수 선언 적용
+- 폴링 테스트: vi.useFakeTimers() + act(async () => { advanceTimersByTime; await Promise.resolve(); })
+- start-error: !hasStarted && errorMessage && status==='failed' 조건 독립 블록 추가
+
+**생성/수정 파일:**
+- frontend/src/__tests__/ConfigPanel.test.tsx, ExecutionPanel.test.tsx (신규)
+- frontend/src/components/panels/ConfigPanel.tsx, ExecutionPanel.tsx (신규)
+- frontend/src/components/Layout.tsx (수정)
+
+**테스트 결과:**
+- 225개 전체 GREEN — Step 38 신규 44개 + 회귀 181개
+
+## Step 39: Result Panel (2026-05-04)
+
+**작업 결과:**
+- MetricsChart.tsx: CSS/HTML 기반 그룹 막대 차트 (recharts 미설치로 순수 구현)
+  - 빈 상태(metrics-chart-empty) / accuracy·fp_rate·fn_rate 3색 막대 / 범례 / 아이템명 레이블
+- PipelineViewer.tsx: 파이프라인 블록 흐름 다이어그램
+  - 빈 상태(pipeline-empty) / 블록 카드(glass morphism) / → 화살표 / 카테고리 배지(5색)
+- ResultPanel.tsx: 4-탭 결과 패널
+  - 빈 상태: "실행 결과가 여기에 표시됩니다"
+  - Code 탭: 라인 번호 + Python 키워드 하이라이팅(React 요소 토크나이저)
+  - Metrics 탭: MetricsChart + 아이템 테이블
+  - Pipeline 탭: PipelineViewer
+  - Decision 탭: 결정 배지(RULE_BASED=blue/EDGE_LEARNING=yellow/DEEP_LEARNING=red) + reason + suggestions
+- Layout.tsx: Result 패널 → ResultPanel 렌더링
+
+**발생 이슈:**
+- recharts package.json 미등록 + node_modules 미설치 → 순수 CSS 구현으로 대체
+- dangerouslySetInnerHTML 미사용 — XSS 보안 원칙 준수, CodeLine 컴포넌트(regex 토크나이저)로 React 요소 직접 생성
+
+**생성/수정 파일:**
+- frontend/src/__tests__/ResultPanel.test.tsx (신규)
+- frontend/src/__tests__/MetricsChart.test.tsx (신규)
+- frontend/src/__tests__/PipelineViewer.test.tsx (신규)
+- frontend/src/components/panels/ResultPanel.tsx (신규)
+- frontend/src/components/MetricsChart.tsx (신규)
+- frontend/src/components/PipelineViewer.tsx (신규)
+- frontend/src/components/Layout.tsx (수정 — ResultPanel 연결)
+- PLAN.md (수정 — Part 5 Step 39 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 272개 전체 GREEN (vitest run, 0 failed)
+  - Step 39 신규: 47개 PASSED
+    - ResultPanel — empty state: 3개
+    - ResultPanel — summary: 2개
+    - ResultPanel — code section: 4개
+    - ResultPanel — metrics section: 4개
+    - ResultPanel — pipeline section: 3개
+    - ResultPanel — decision section: 7개
+    - ResultPanel — tab switching: 2개
+    - MetricsChart — empty state: 3개
+    - MetricsChart — chart rendering: 5개
+    - PipelineViewer — empty state: 3개
+    - PipelineViewer — block rendering: 6개
+    - PipelineViewer — all category types: 5개
+  - Step 38 회귀: 44개 PASS
+  - Step 37 회귀: 33개 PASS
+  - Step 36 회귀: 57개 PASS
+  - Step 35 회귀: 27개 PASS
+  - Step 34 회귀: 47개 PASS
+  - Step 33 회귀: 17개 PASS
