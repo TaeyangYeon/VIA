@@ -2077,4 +2077,60 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 11: 73개 PASSED (test_models.py)
     - Enum: InspectionMode 3, AlgorithmCategory 3, FailureReason 2, DecisionType 2, DefectScale 2, IlluminationType 2, NoiseFrequency 2
     - Dataclass: ImageDiagnosis 5, PipelineBlock 3, ProcessingPipeline 4, JudgementResult 3, InspectionItem 3, InspectionPlan 2, SpecResult 2, TestMetrics 3, ItemTestResult 3, EvaluationResult 4, FeedbackAction 3, DecisionResult 2, AgentDirectives 5, ExecutionProgress 2, AlgorithmResult 2
+
+---
+
+### Step 36: 전체 레이아웃 + Input Panel (이미지 업로드) (2026-05-04)
+
+**작업 결과:**
+- Layout.tsx: Sidebar(nav 6개 패널) + Main Workspace 구조. useState로 activePanel 관리. data-testid/data-active 속성으로 테스트 가능.
+  - 패널 목록: Input, Directive, Config, Execution, Result, Log
+  - 각 패널 아이콘: lucide-react (Upload, FileText, Settings, Play, BarChart2, ScrollText)
+  - Input 외 패널은 PlaceholderPanel("coming soon") 표시
+- InputPanel.tsx: 두 섹션(Analysis Images / Test Images) 각각 ImageSection 컴포넌트로 구성
+  - validateFilename: /^(OK|NG)_\d+\.(png|jpg|jpeg|bmp|tiff)$/i 패턴, named export
+  - 드래그&드롭(onDrop) + 파일 인풋(hidden input) 이중 지원
+  - 업로드 흐름: validateFilename → uploadImage API → addImage dispatch (image_id→id 매핑)
+  - 썸네일 그리드: previewUrls Map<id, blobUrl>로 미리보기, OK/NG 배지(success/error 색상), 삭제 버튼
+  - 삭제: deleteImage API → removeImage dispatch → URL.revokeObjectURL
+  - Clear All: clearImages API → clearImagesByPurpose dispatch
+  - 이미지 카운트 data-testid, 로딩 오버레이, 에러 메시지 표시
+  - 빈 상태: Upload 아이콘 + "Drop images here or click to upload"
+- App.tsx: Layout만 렌더링하도록 단순화
+
+**발생 이슈:**
+- 드롭존 hint 텍스트 "OK_N / NG_N"가 테스트 에러 정규식 `/invalid|OK_N|NG_N|filename/i`에 중복 매치 → hint 텍스트를 "PNG · JPG · BMP · TIFF"로 변경하여 해결
+
+**생성/수정 파일:**
+- frontend/src/__tests__/Layout.test.tsx (신규)
+- frontend/src/__tests__/InputPanel.test.tsx (신규)
+- frontend/src/components/Layout.tsx (신규)
+- frontend/src/components/panels/InputPanel.tsx (신규)
+- frontend/src/App.tsx (수정 — Layout 렌더링으로 교체)
+- PLAN.md (수정 — Part 5 Step 36 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 148개 전체 GREEN (vitest run, 0 failed)
+  - Step 36 신규: 57개 PASSED
+    - Layout.test.tsx: 24개
+      - sidebar rendering: 7개 (navigation 엘리먼트, 6개 패널 이름)
+      - default state: 3개 (Input 패널 기본 표시, data-active=true, 다른 패널 비활성)
+      - panel switching: 3개 (Config/Log 클릭 후 Input 숨김, 다시 Input 클릭 복원)
+      - active state: 3개 (Config 클릭 후 active 전환, Input 비활성화, 동시 1개만 active)
+      - workspace: 1개 (role=main 존재)
+      - (나머지 7개 포함)
+    - InputPanel.test.tsx: 33개
+      - validateFilename: 11개 (유효 5개, 무효 4개, 엣지 2개)
+      - section rendering: 6개 (헤딩, drop-zone, file-input)
+      - empty state: 4개 (카운트 0, hint 텍스트)
+      - file validation: 3개 (에러 표시, API 미호출, 유효 파일 에러 없음)
+      - upload flow: 5개 (purpose=analysis/test 호출, store 업데이트, 에러 표시)
+      - thumbnail display: 4개 (파일명, OK 배지, NG 배지, 카운트 갱신)
+      - delete: 2개 (deleteImage 호출, store에서 제거)
+      - clear all: 3개 (analysis/test clearImages 호출, store 비움)
+      - drag and drop: 2개 (유효 파일 업로드, 무효 파일 에러)
+  - Step 35 회귀: 27개 PASS — 전부 유지
+  - Step 34 회귀: 47개 PASS — 전부 유지
+  - Step 33 회귀: 17개 PASS — 전부 유지
     - BaseAgent: abstract 3, properties 5, logging 3

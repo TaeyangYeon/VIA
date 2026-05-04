@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 33 완료 / Step 34 대기
+## 현재 진행 단계: Step 36 완료 / Step 37 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -46,9 +46,10 @@
 ## Phase 6: 프론트엔드
 - [x] Step 32: Electron 프로젝트 초기화 (2026-05-03) — electron 35.7.5, electron-builder 25.1.8, 29 tests PASS
 - [x] Step 33: React + TypeScript + TailwindCSS + 디자인 시스템 설정 (2026-05-03) — vite 8.0.10, react 18.3.1, tailwindcss 3.4.19, 17 tests PASS
-- [ ] Step 34: Redux Store 초기화 (directives 포함)
-- [ ] Step 35: API 클라이언트 서비스
-- [ ] Step 36: 전체 레이아웃 + Input Panel
+- [x] Step 34: Redux Store 초기화 (directives 포함) (2026-05-03) — 7 slices, 47 tests PASS
+- [x] Step 35: API 클라이언트 서비스 (2026-05-03) — axios, 20 functions, 27 tests PASS
+- [x] Step 36: 전체 레이아웃 + Input Panel (2026-05-04) — Layout + InputPanel, 57 tests PASS
+- [ ] Step 37: Directive Panel UI
 - [ ] Step 37: Directive Panel UI
 - [ ] Step 38: Config Panel + Execution Panel
 - [ ] Step 39: Result Panel (파이프라인 시각화 포함)
@@ -1136,5 +1137,44 @@
     - axios instance config (2개), Health (1개), Images (7개)
     - Config (2개), Directives (4개), Logs (4개)
     - Execute (4개), Error handling (3개)
+  - Step 34 회귀: 47개 PASS — 전부 유지
+  - Step 33 회귀: 17개 PASS — 전부 유지
+
+---
+
+## Step 36: 전체 레이아웃 + Input Panel (2026-05-04)
+
+**작업 결과:**
+- Layout.tsx: Sidebar + Main Workspace. useState로 activePanel 관리(기본값 'Input'). data-testid/data-active로 테스트 및 접근성 지원.
+  - 6개 패널 nav: Input(Upload), Directive(FileText), Config(Settings), Execution(Play), Result(BarChart2), Log(ScrollText)
+  - Input 외 패널은 placeholder 표시 (Step 37~40에서 구현 예정)
+- InputPanel.tsx: Analysis Images / Test Images 두 섹션.
+  - validateFilename(filename): /^(OK|NG)_\d+\.(png|jpg|jpeg|bmp|tiff)$/i — named export
+  - ImageSection 컴포넌트: 드롭존 + hidden file input 이중 업로드 지원
+  - 업로드 흐름: validateFilename → uploadImage(file, purpose) → addImage dispatch (image_id→id 매핑)
+  - 썸네일: previewUrls Map(id→blobUrl), OK/NG 배지, 삭제 버튼(data-testid="delete-{id}")
+  - 삭제: deleteImage API → removeImage dispatch
+  - Clear All(data-testid="{purpose}-clear-btn"): clearImages API → clearImagesByPurpose dispatch
+  - 이미지 수(data-testid="{purpose}-count"), 로딩 오버레이, 에러 메시지
+- App.tsx: Layout 단독 렌더링으로 단순화
+
+**발생 이슈:**
+- 드롭존 hint "OK_N / NG_N"가 에러 정규식 /invalid|OK_N|NG_N|filename/i에 중복 매치 → hint를 "PNG · JPG · BMP · TIFF"로 변경하여 해결
+
+**생성/수정 파일:**
+- frontend/src/__tests__/Layout.test.tsx (신규)
+- frontend/src/__tests__/InputPanel.test.tsx (신규)
+- frontend/src/components/Layout.tsx (신규)
+- frontend/src/components/panels/InputPanel.tsx (신규)
+- frontend/src/App.tsx (수정 — Layout 렌더링)
+- PLAN.md (수정 — Part 5 Step 36 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 148개 전체 GREEN (vitest run, 0 failed)
+  - Step 36 신규: 57개 PASSED
+    - Layout.test.tsx 24개: sidebar(7) + default(3) + switching(3) + active(3) + workspace(1) + 기타(7)
+    - InputPanel.test.tsx 33개: validateFilename(11) + rendering(6) + empty(4) + validation(3) + upload(5) + thumbnail(4) + delete(2) + clear(3) + drag&drop(2) — (일부 중복 포함)
+  - Step 35 회귀: 27개 PASS — 전부 유지
   - Step 34 회귀: 47개 PASS — 전부 유지
   - Step 33 회귀: 17개 PASS — 전부 유지
