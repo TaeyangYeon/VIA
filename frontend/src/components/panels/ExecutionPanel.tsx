@@ -128,6 +128,18 @@ export default function ExecutionPanel() {
         )}
       </div>
 
+      {/* Start error (execution_id is null — never entered hasStarted block) */}
+      {!hasStarted && errorMessage && execution.status === 'failed' && (
+        <div
+          data-testid="start-error"
+          className="flex items-start gap-2 p-3 text-sm rounded border bg-white/5 backdrop-blur-sm border-white/10"
+          style={{ color: accent_error }}
+        >
+          <AlertCircle size={14} className="mt-0.5 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
       {/* Status area */}
       {!hasStarted && (
         <div

@@ -130,6 +130,16 @@ describe('ExecutionPanel — start execution', () => {
     renderExecutionPanel(RUNNING_EXECUTION_STATE);
     expect(screen.getByTestId('start-btn')).toBeDisabled();
   });
+
+  it('shows start-error when startExecution API fails (execution_id stays null)', async () => {
+    mockStartExecution.mockRejectedValue(Object.assign(new Error('images not uploaded'), { response: { status: 400 } }));
+    renderExecutionPanel();
+    fireEvent.change(screen.getByTestId('purpose-textarea'), { target: { value: '불량 검출' } });
+    await act(async () => { fireEvent.click(screen.getByTestId('start-btn')); });
+    await waitFor(() => {
+      expect(screen.getByTestId('start-error')).toBeInTheDocument();
+    });
+  });
 });
 
 // ── Cancel execution ───────────────────────────────────────────
