@@ -64,10 +64,19 @@ class TestColabNotebookGeneratorStructure:
         nb = gen.generate()
         install_cell = next(
             c for c in nb.cells
-            if c.cell_type == "code" and "curl" in c.source
+            if c.cell_type == "code" and "install.sh" in c.source
         )
         assert "curl" in install_cell.source
         assert "ollama" in install_cell.source
+
+    def test_ollama_install_cell_contains_zstd(self):
+        gen = ColabNotebookGenerator()
+        nb = gen.generate()
+        install_cell = next(
+            c for c in nb.cells
+            if c.cell_type == "code" and "install.sh" in c.source
+        )
+        assert "apt-get install -y zstd" in install_cell.source
 
     def test_server_start_cell_contains_ollama_serve(self):
         gen = ColabNotebookGenerator()
@@ -96,6 +105,25 @@ class TestColabNotebookGeneratorStructure:
         )
         assert "cloudflared" in cf_cell.source
         assert "tunnel" in cf_cell.source
+
+    def test_cloudflared_cell_uses_tunnel_log(self):
+        gen = ColabNotebookGenerator()
+        nb = gen.generate()
+        cf_cell = next(
+            c for c in nb.cells
+            if c.cell_type == "code" and "cloudflared" in c.source
+        )
+        assert "tunnel.log" in cf_cell.source
+
+    def test_cloudflared_cell_extracts_url_via_grep(self):
+        gen = ColabNotebookGenerator()
+        nb = gen.generate()
+        cf_cell = next(
+            c for c in nb.cells
+            if c.cell_type == "code" and "cloudflared" in c.source
+        )
+        assert "grep" in cf_cell.source
+        assert "trycloudflare.com" in cf_cell.source
 
     def test_invalid_model_raises_value_error(self):
         gen = ColabNotebookGenerator()

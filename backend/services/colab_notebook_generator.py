@@ -21,7 +21,7 @@ class ColabNotebookGenerator:
             ),
             new_code_cell(
                 "# Install Ollama\n"
-                "!curl -fsSL https://ollama.com/install.sh | sh"
+                "!apt-get install -y zstd && curl -fsSL https://ollama.com/install.sh | sh"
             ),
             new_code_cell(
                 "# Start Ollama server in background and wait for readiness\n"
@@ -47,9 +47,9 @@ class ColabNotebookGenerator:
                 "# Install cloudflared and start tunnel\n"
                 "!curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 "
                 "-o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared\n"
-                "!nohup cloudflared tunnel --url http://localhost:11434 &\n"
-                "import time; time.sleep(5)\n"
-                "print('Tunnel started. Look above for the trycloudflare.com URL.')"
+                "!nohup cloudflared tunnel --url http://localhost:11434 > tunnel.log 2>&1 &\n"
+                "import time; time.sleep(8)\n"
+                "!grep -o 'https://[^ ]*trycloudflare.com' tunnel.log || echo 'URL not found yet — run this cell again or check: !cat tunnel.log'"
             ),
             new_markdown_cell(
                 "## Next step\n\n"

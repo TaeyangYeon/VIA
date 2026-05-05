@@ -2461,6 +2461,12 @@ Badge Error       bg-red-500/20 text-red-400
       - 200 응답, content-type json, Content-Disposition setup_notebook, attachment, 기본 모델, gemma4:27b, 400 잘못된 모델, JSON notebook 구조, 셀 내 모델명
   - 기존 1515개 회귀 없음
 
+**Hotfix (2026-05-05) — 실제 Colab 실행 시 발견된 2가지 버그 수정:**
+- Ollama 설치 셀: `apt-get install -y zstd &&`를 curl 앞에 추가 (zstd 미설치로 인한 추출 실패 수정)
+- cloudflared 터널 셀: 터널 출력을 tunnel.log로 리다이렉트, sleep(5)→sleep(8) 연장, grep으로 trycloudflare.com URL 자동 추출 (URL 확인 불편 개선)
+- 수정 파일: backend/services/colab_notebook_generator.py, tests/test_colab_notebook_generator.py (+3 assertion)
+- 테스트: 1541개 전체 GREEN (신규 3개: zstd 검사, tunnel.log 검사, grep+trycloudflare.com 검사)
+
 ### Step 43: AI Engine 설정 UI (Local / Colab 전환 패널) (2026-05-05)
 
 **작업 결과:**
