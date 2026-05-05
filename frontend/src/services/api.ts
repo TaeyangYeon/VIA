@@ -19,6 +19,9 @@ import type {
   ExecutionStatus,
   ExecutionHistoryResponse,
   CancelExecutionResponse,
+  EngineConfigRequest,
+  EngineConfigResponse,
+  EngineStatusResponse,
 } from './types';
 
 const apiClient = axios.create({
@@ -162,4 +165,31 @@ export async function getExecutionHistory(): Promise<ExecutionHistoryResponse> {
 export async function cancelExecution(executionId: string): Promise<CancelExecutionResponse> {
   const res = await apiClient.post<CancelExecutionResponse>(`/api/execute/${executionId}/cancel`);
   return res.data;
+}
+
+// Engine
+
+export async function saveEngineConfig(config: EngineConfigRequest): Promise<EngineConfigResponse> {
+  const res = await apiClient.post<EngineConfigResponse>('/api/engine/config', config);
+  return res.data;
+}
+
+export async function getEngineStatus(): Promise<EngineStatusResponse> {
+  const res = await apiClient.get<EngineStatusResponse>('/api/engine/status');
+  return res.data;
+}
+
+export async function downloadSetupNotebook(model: string): Promise<void> {
+  const res = await apiClient.get('/api/engine/setup-notebook', {
+    params: { model },
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `via_colab_setup_${model.replace(':', '_')}.ipynb`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

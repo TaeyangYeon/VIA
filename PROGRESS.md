@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 42 완료 / Step 43 대기
+## 현재 진행 단계: Step 43 완료 / Step 44 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -1388,3 +1388,45 @@
     - TestSetupNotebookEndpoint: 9개 (asyncio)
       - 200 응답, content-type json, Content-Disposition setup_notebook, attachment, 기본 모델, gemma4:27b, 400 잘못된 모델, JSON 구조, 셀 내 모델명
   - 기존 1515개 회귀 없음
+
+
+### Step 43: AI Engine 설정 UI (Local / Colab 전환 패널) (2026-05-05) ✅
+
+**작업 결과:**
+- Redux engine slice 신규: engine_mode, colab_url, connection_status, remote_info, error 상태 + 6개 액션 + selectEngine 셀렉터
+- store/index.ts: engine reducer 등록 (8번째 슬라이스)
+- Engine 타입 3개 추가 (types.ts): EngineConfigRequest, EngineConfigResponse, EngineStatusResponse
+- Engine API 함수 3개 추가 (api.ts): saveEngineConfig, getEngineStatus, downloadSetupNotebook
+- EngineSettingsPanel 신규:
+  - 마운트 시 getEngineStatus() → 백엔드 상태로 초기화
+  - Local 모드: 연결 배지(Connected/Disconnected), 모델 상태
+  - Colab 모드: 3단계(다운로드 → Colab 실행 안내 → URL 연결 테스트)
+  - 연결 테스트 플로우: connecting 스피너 → saveEngineConfig → connected(CheckCircle) or error(XCircle)
+  - 저장 버튼: saveEngineConfig + 성공/실패 피드백
+- Layout.tsx: Engine 패널을 Config와 Execution 사이에 추가 (Cpu 아이콘)
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- frontend/src/__tests__/engineSlice.test.ts (신규)
+- frontend/src/__tests__/EngineSettingsPanel.test.tsx (신규)
+- frontend/src/store/slices/engineSlice.ts (신규)
+- frontend/src/components/panels/EngineSettingsPanel.tsx (신규)
+- frontend/src/services/types.ts (수정 — Engine 타입 3개)
+- frontend/src/services/api.ts (수정 — Engine API 함수 3개)
+- frontend/src/store/index.ts (수정 — engine reducer, 8 슬라이스)
+- frontend/src/components/Layout.tsx (수정 — Engine 사이드바 항목 + 렌더링)
+- PLAN.md (수정 — Step 43 실행 로그 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 368개 전체 GREEN (vitest run, 0 failed)
+  - Step 43 신규: 65개 PASSED
+    - engineSlice.test.ts: 25개
+      - initial state 5개, setEngineMode 2개, setColabUrl 2개, setConnectionStatus 4개
+      - setRemoteInfo 3개, setEngineError 2개, resetEngine 5개, selectEngine 2개
+    - EngineSettingsPanel.test.tsx: 40개
+      - rendering 5개, on mount 6개, local mode 6개, mode switching 6개
+      - colab mode UI 7개, download notebook 2개, connection test 6개, save button 3개
+  - 기존 303개 회귀 없음

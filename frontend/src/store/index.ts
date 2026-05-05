@@ -6,6 +6,7 @@ import directivesReducer from './slices/directivesSlice';
 import executionReducer from './slices/executionSlice';
 import resultReducer from './slices/resultSlice';
 import logsReducer from './slices/logsSlice';
+import engineReducer from './slices/engineSlice';
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     execution: executionReducer,
     result: resultReducer,
     logs: logsReducer,
+    engine: engineReducer,
   },
 });
 

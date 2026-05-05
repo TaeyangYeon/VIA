@@ -19,18 +19,20 @@ import {
 import InputPanel from './panels/InputPanel';
 import DirectivePanel from './panels/DirectivePanel';
 import ConfigPanel from './panels/ConfigPanel';
+import EngineSettingsPanel from './panels/EngineSettingsPanel';
 import ExecutionPanel from './panels/ExecutionPanel';
 import ResultPanel from './panels/ResultPanel';
 import LogPanel from './panels/LogPanel';
 
-type PanelName = 'Input' | 'Directive' | 'Config' | 'Execution' | 'Result' | 'Log';
+type PanelName = 'Input' | 'Directive' | 'Config' | 'Engine' | 'Execution' | 'Result' | 'Log';
 
-const PANELS: PanelName[] = ['Input', 'Directive', 'Config', 'Execution', 'Result', 'Log'];
+const PANELS: PanelName[] = ['Input', 'Directive', 'Config', 'Engine', 'Execution', 'Result', 'Log'];
 
 const PANEL_ICONS: Record<PanelName, React.ReactNode> = {
   Input: <Upload size={15} />,
   Directive: <FileText size={15} />,
   Config: <Settings size={15} />,
+  Engine: <Cpu size={15} />,
   Execution: <Play size={15} />,
   Result: <BarChart2 size={15} />,
   Log: <ScrollText size={15} />,
@@ -53,6 +55,7 @@ export default function Layout() {
     if (activePanel === 'Input') return <InputPanel />;
     if (activePanel === 'Directive') return <DirectivePanel />;
     if (activePanel === 'Config') return <ConfigPanel />;
+    if (activePanel === 'Engine') return <EngineSettingsPanel />;
     if (activePanel === 'Execution') return <ExecutionPanel />;
     if (activePanel === 'Result') return <ResultPanel />;
     if (activePanel === 'Log') return <LogPanel />;

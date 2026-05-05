@@ -121,3 +121,23 @@ export type ExecutionHistoryResponse = ExecutionStatus[];
 export interface CancelExecutionResponse {
   cancelled: boolean;
 }
+
+// Engine
+export interface EngineConfigRequest {
+  engine_mode: string;
+  colab_url?: string;
+}
+
+export interface EngineConfigResponse {
+  engine_mode: string;
+  base_url: string;
+  warnings?: string[];
+}
+
+export interface EngineStatusResponse {
+  engine_mode: string;
+  base_url: string;
+  connected: boolean;
+  model_available: boolean;
+  error?: string;
+}

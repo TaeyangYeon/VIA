@@ -2460,3 +2460,60 @@ Badge Error       bg-red-500/20 text-red-400
     - TestSetupNotebookEndpoint: 9개 (asyncio)
       - 200 응답, content-type json, Content-Disposition setup_notebook, attachment, 기본 모델, gemma4:27b, 400 잘못된 모델, JSON notebook 구조, 셀 내 모델명
   - 기존 1515개 회귀 없음
+
+### Step 43: AI Engine 설정 UI (Local / Colab 전환 패널) (2026-05-05)
+
+**작업 결과:**
+- Redux engine slice 신규 (`frontend/src/store/slices/engineSlice.ts`):
+  - State: engine_mode('local'|'colab'), colab_url, connection_status('disconnected'|'connecting'|'connected'|'error'), remote_info({model_name?,gpu_info?}|null), error
+  - Actions: setEngineMode, setColabUrl, setConnectionStatus, setRemoteInfo, setEngineError, resetEngine
+  - Selector: selectEngine
+- Engine API 함수 추가 (`frontend/src/services/api.ts`):
+  - saveEngineConfig(config) → POST /api/engine/config
+  - getEngineStatus() → GET /api/engine/status
+  - downloadSetupNotebook(model) → GET /api/engine/setup-notebook?model=... (blob+anchor click 다운로드)
+- Engine 타입 추가 (`frontend/src/services/types.ts`):
+  - EngineConfigRequest, EngineConfigResponse, EngineStatusResponse
+- store/index.ts: engine reducer 등록 (8번째 슬라이스)
+- EngineSettingsPanel 신규 (`frontend/src/components/panels/EngineSettingsPanel.tsx`):
+  - 마운트 시 getEngineStatus() 호출 → mode/status 초기화
+  - Local/Colab 모드 토글 버튼 (data-testid: mode-local, mode-colab)
+  - Local 섹션: 연결 상태 배지(Connected/Disconnected), 모델 상태(gemma4:e4b ready/Model not found)
+  - Colab 섹션(3단계): Step1-모델 드롭다운+다운로드 버튼, Step2-한국어 가이드(①②③), Step3-URL 입력+연결 테스트 버튼+상태 표시
+  - 연결 테스트: connecting→saveEngineConfig→connected(CheckCircle) or error(XCircle+메시지)
+  - 저장 버튼: saveEngineConfig 호출, save-success/save-error 표시
+- Layout.tsx 수정: Engine 패널을 Config와 Execution 사이에 추가, Cpu 아이콘 사용, EngineSettingsPanel 렌더링
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- frontend/src/__tests__/engineSlice.test.ts (신규)
+- frontend/src/__tests__/EngineSettingsPanel.test.tsx (신규)
+- frontend/src/store/slices/engineSlice.ts (신규)
+- frontend/src/components/panels/EngineSettingsPanel.tsx (신규)
+- frontend/src/services/types.ts (수정 — Engine 타입 3개 추가)
+- frontend/src/services/api.ts (수정 — saveEngineConfig, getEngineStatus, downloadSetupNotebook 추가)
+- frontend/src/store/index.ts (수정 — engine reducer 등록, 8 슬라이스)
+- frontend/src/components/Layout.tsx (수정 — Engine 사이드바 항목 + EngineSettingsPanel 렌더링)
+- PLAN.md (수정 — Part 5 Step 43 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 368개 전체 GREEN (vitest run, 0 failed)
+  - Step 43 신규: 65개 PASSED
+    - engineSlice.test.ts: 25개
+      - initial state: 5개 (engine_mode, colab_url, connection_status, remote_info, error)
+      - setEngineMode: 2개, setColabUrl: 2개, setConnectionStatus: 4개
+      - setRemoteInfo: 3개, setEngineError: 2개, resetEngine: 5개
+      - selectEngine: 2개
+    - EngineSettingsPanel.test.tsx: 40개
+      - rendering: 5개 (mode-local, mode-colab, local-status, no colab-section, save-engine-btn)
+      - on mount: 6개 (getEngineStatus 호출, local/colab 초기화, connected/disconnected, 에러 처리)
+      - local mode: 6개 (connection-badge, Connected/Disconnected, model-status, ready/not found)
+      - mode switching: 6개 (colab 전환 시 colab-section 표시/local-status 숨김, 반대, 디스패치)
+      - colab mode UI: 7개 (model-select 옵션 2개, download-btn, setup-guide, url-input, test-btn)
+      - download notebook: 2개 (기본 모델, gemma4:27b 선택 시)
+      - connection test: 6개 (disconnected 시 숨김, 성공→connected, Connected 텍스트, 실패→error, 에러 메시지, API 호출 파라미터)
+      - save button: 3개 (API 호출, save-success, save-error)
+  - 기존 303개 회귀 없음
