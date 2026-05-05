@@ -21,6 +21,7 @@ import DirectivePanel from './panels/DirectivePanel';
 import ConfigPanel from './panels/ConfigPanel';
 import ExecutionPanel from './panels/ExecutionPanel';
 import ResultPanel from './panels/ResultPanel';
+import LogPanel from './panels/LogPanel';
 
 type PanelName = 'Input' | 'Directive' | 'Config' | 'Execution' | 'Result' | 'Log';
 
@@ -54,6 +55,7 @@ export default function Layout() {
     if (activePanel === 'Config') return <ConfigPanel />;
     if (activePanel === 'Execution') return <ExecutionPanel />;
     if (activePanel === 'Result') return <ResultPanel />;
+    if (activePanel === 'Log') return <LogPanel />;
     return <PlaceholderPanel name={activePanel} />;
   };
 

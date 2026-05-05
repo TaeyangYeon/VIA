@@ -2334,3 +2334,59 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 35 회귀: 27개 PASS — 전부 유지
   - Step 34 회귀: 47개 PASS — 전부 유지
   - Step 33 회귀: 17개 PASS — 전부 유지
+
+### Step 40: Log Panel + E2E 체크리스트 (2026-05-05)
+
+**작업 결과:**
+- LogPanel.tsx: 실시간 에이전트 로그 뷰어 구현
+  - 헤더 툴바: log-count 배지, agent-filter 드롭다운(getLogAgents on mount), level-filter 드롭다운(DEBUG/INFO/WARNING/ERROR), refresh-btn(RefreshCw), clear-btn(Trash2)
+  - 에이전트 색상: 12색 팔레트, 에이전트명 해시(×31) → 결정론적 색상 매핑 (같은 에이전트 항상 동일 색상)
+  - 레벨 색상: DEBUG=#a0a0a0, INFO=#60a5fa(accent_info), WARNING=#facc15(accent_warning), ERROR=#f87171(accent_error)
+  - 타임스탬프 포맷: ISO → HH:MM:SS.mmm 변환(formatTimestamp)
+  - 각 엔트리: data-testid="log-entry-{i}", agent-badge-{i}(에이전트 색상), level-badge-{i}(레벨 색상), 메시지
+  - 스크롤 컨테이너: useRef + useEffect로 신규 엔트리 자동 하단 스크롤
+  - 실시간 폴링: execution.status === 'running' → setInterval 2000ms, cleanup on unmount/status change
+  - 수동 갱신: refresh-btn → fetchLogs() 직접 호출
+  - 로그 클리어: clearLogsAPI() + dispatch(clearLogsAction()) + setLogs([])
+  - 빈 상태(empty-state): ScrollText 아이콘 + "No logs yet. Start an execution to see agent logs."
+  - 로딩 상태(logs-loading): 초기 mount 시 loading=true, Promise.all 완료 후 false
+  - 에러 상태(logs-error): getLogs API 실패 시 표시
+- Layout.tsx: 'Log' 패널 → LogPanel 렌더링으로 교체 (PlaceholderPanel 제거)
+- tests/e2e/test_ui_api_integration.md: 9개 섹션 수동 E2E 체크리스트 작성
+  - 섹션 1-6: 각 패널별 세부 테스트 항목
+  - 섹션 7: 크로스 패널 인터랙션
+  - 섹션 8: 디자인 일관성(다크테마/glass morphism/transition/empty-loading-error)
+  - 섹션 9: 전체 UI 품질 평가 루브릭(1-5점 척도)
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- frontend/src/__tests__/LogPanel.test.tsx (신규)
+- frontend/src/components/panels/LogPanel.tsx (신규)
+- frontend/src/components/Layout.tsx (수정 — LogPanel import 및 렌더링 추가)
+- tests/e2e/test_ui_api_integration.md (신규)
+- PLAN.md (수정 — Part 5 Step 40 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 303개 전체 GREEN (vitest run, 0 failed)
+  - Step 40 신규: 31개 PASSED
+    - LogPanel — rendering: 7개 (refresh-btn, clear-btn, log-count, empty-state, agent-filter, level-filter, count=0)
+    - LogPanel — loading state: 1개 (logs-loading 표시→해제)
+    - LogPanel — error state: 1개 (logs-error 표시)
+    - LogPanel — log entries: 7개 (항목 수, empty-state 미표시, agent-badge, level-badge, 에이전트명, 레벨명, 메시지)
+    - LogPanel — timestamp formatting: 1개 (HH:MM:SS.mmm 패턴 매칭)
+    - LogPanel — agent filter: 4개 (getLogAgents 호출, All Agents, 에이전트 목록, 필터 변경시 API 호출)
+    - LogPanel — level filter: 3개 (All Levels, DEBUG/INFO/WARNING/ERROR, 레벨 필터 API 호출)
+    - LogPanel — manual refresh: 1개 (refresh-btn → getLogs 호출)
+    - LogPanel — clear logs: 2개 (clearLogs API 호출, Redux entries = [])
+    - LogPanel — polling: 2개 (running 시 2초 폴링, idle 시 폴링 없음)
+    - LogPanel — agent color determinism: 1개 (동일 에이전트 동일 배지 색상)
+  - Step 39 회귀: 47개 PASS — 전부 유지
+  - Step 38 회귀: 44개 PASS — 전부 유지
+  - Step 37 회귀: 33개 PASS — 전부 유지
+  - Step 36 회귀: 57개 PASS — 전부 유지
+  - Step 35 회귀: 27개 PASS — 전부 유지
+  - Step 34 회귀: 47개 PASS — 전부 유지
+  - Step 33 회귀: 17개 PASS — 전부 유지

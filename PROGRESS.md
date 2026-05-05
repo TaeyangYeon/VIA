@@ -1286,3 +1286,43 @@
   - Step 35 회귀: 27개 PASS
   - Step 34 회귀: 47개 PASS
   - Step 33 회귀: 17개 PASS
+
+### Step 40: Log Panel + E2E 체크리스트 (2026-05-05) ✅
+
+**작업 결과:**
+- LogPanel.tsx: 실시간 에이전트 로그 뷰어 (agent-filter, level-filter, 결정론적 에이전트 색상, HH:MM:SS.mmm 타임스탬프, 2초 폴링, 수동 refresh, clear)
+- Layout.tsx: 'Log' 패널 → LogPanel 연결
+- tests/e2e/test_ui_api_integration.md: 9개 섹션, 55개 항목 수동 E2E 체크리스트
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- frontend/src/__tests__/LogPanel.test.tsx (신규)
+- frontend/src/components/panels/LogPanel.tsx (신규)
+- frontend/src/components/Layout.tsx (수정)
+- tests/e2e/test_ui_api_integration.md (신규)
+- PLAN.md (수정)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 303개 전체 GREEN (vitest run, 0 failed)
+  - Step 40 신규: 31개 PASSED
+    - LogPanel — rendering: 7개
+    - LogPanel — loading state: 1개
+    - LogPanel — error state: 1개
+    - LogPanel — log entries: 7개
+    - LogPanel — timestamp formatting: 1개
+    - LogPanel — agent filter: 4개
+    - LogPanel — level filter: 3개
+    - LogPanel — manual refresh: 1개
+    - LogPanel — clear logs: 2개
+    - LogPanel — polling: 2개
+    - LogPanel — agent color determinism: 1개
+  - Step 39 회귀: 47개 PASS
+  - Step 38 회귀: 44개 PASS
+  - Step 37 회귀: 33개 PASS
+  - Step 36 회귀: 57개 PASS
+  - Step 35 회귀: 27개 PASS
+  - Step 34 회귀: 47개 PASS
+  - Step 33 회귀: 17개 PASS
