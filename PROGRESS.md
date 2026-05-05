@@ -43,7 +43,7 @@
 - [x] Step 30: Orchestrator → Decision Agent 연결 (2026-05-01)
 - [x] Step 31: 파이프라인 실행 API (2026-05-01)
 
-## Phase 6: 프론트엔드
+## Phase 6: 프론트엔드 + Colab 통합
 - [x] Step 32: Electron 프로젝트 초기화 (2026-05-03) — electron 35.7.5, electron-builder 25.1.8, 29 tests PASS
 - [x] Step 33: React + TypeScript + TailwindCSS + 디자인 시스템 설정 (2026-05-03) — vite 8.0.10, react 18.3.1, tailwindcss 3.4.19, 17 tests PASS
 - [x] Step 34: Redux Store 초기화 (directives 포함) (2026-05-03) — 7 slices, 47 tests PASS
@@ -53,25 +53,28 @@
 - [x] Step 38: Config Panel + Execution Panel (2026-05-04) — ConfigPanel + ExecutionPanel, 44 tests PASS
 - [x] Step 39: Result Panel (2026-05-04) — ResultPanel + MetricsChart + PipelineViewer, 47 tests PASS
 - [ ] Step 40: 로그 패널 + UI-API 통합 테스트
+- [ ] Step 41: OllamaClient 원격 URL 지원 + Engine Config API
+- [ ] Step 42: Colab 셋업 노트북 생성기 + 다운로드 API
+- [ ] Step 43: AI Engine 설정 UI (Local / Colab 전환 패널)
 
 ## Phase 7: 통합 & E2E
-- [ ] Step 41: Inspection 전체 파이프라인 E2E
-- [ ] Step 42: Align 전체 파이프라인 E2E
-- [ ] Step 43: Agent Directive E2E 테스트
-- [ ] Step 44: 성능 최적화 (Vision Judge 속도)
-- [ ] Step 45: 에러 처리 강화 + 결과 내보내기
-- [ ] Step 46: Retry 및 Decision 시나리오 통합 테스트
+- [ ] Step 44: Inspection 전체 파이프라인 E2E
+- [ ] Step 45: Align 전체 파이프라인 E2E
+- [ ] Step 46: Agent Directive E2E 테스트
+- [ ] Step 47: 성능 최적화 (Vision Judge 속도)
+- [ ] Step 48: 에러 처리 강화 + 결과 내보내기
+- [ ] Step 49: Retry 및 Decision 시나리오 통합 테스트
 
 ## Phase 8: 패키징 & 배포
-- [ ] Step 47: FastAPI 자동 시작 + Ollama 멀티모달 상태 확인
-- [ ] Step 48: macOS DMG + Windows NSIS 패키징
-- [ ] Step 49: 전체 최종 통합 테스트
-- [ ] Step 50: 문서화 완성 + 최종 Git 커밋
+- [ ] Step 50: FastAPI 자동 시작 + AI Engine 상태 확인
+- [ ] Step 51: macOS DMG + Windows NSIS 패키징
+- [ ] Step 52: 전체 최종 통합 테스트
+- [ ] Step 53: 문서화 완성 + 최종 Git 커밋
 ```
 
 ---
 
-*VIA Master Development Plan v3.0 | 50 Steps / 8 Phases*
+*VIA Master Development Plan v3.1 | 53 Steps / 8 Phases*
 
 ---
 
