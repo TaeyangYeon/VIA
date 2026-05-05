@@ -2390,3 +2390,42 @@ Badge Error       bg-red-500/20 text-red-400
   - Step 35 회귀: 27개 PASS — 전부 유지
   - Step 34 회귀: 47개 PASS — 전부 유지
   - Step 33 회귀: 17개 PASS — 전부 유지
+
+### Step 41: OllamaClient 원격 URL 지원 + Engine Config API (2026-05-05)
+
+**작업 결과:**
+- OllamaClient에 `get_base_url() -> str`, `async set_base_url(url)` 메서드 추가
+  - `set_base_url`: 기존 httpx 클라이언트 aclose() 후 None 처리, base_url 갱신 → 다음 요청 시 새 클라이언트 lazy 생성
+  - `get_base_url`: self.base_url 반환
+  - 기존 singleton, default localhost:11434, 모든 에이전트 코드 수정 없음
+- backend/services/engine_config_store.py 신규: EngineConfigStore (get/save/reset), module-level singleton
+- backend/config.py: engine_mode: str = "local", colab_url: Optional[str] = None 필드 추가 (VIA_ prefix 적용)
+- backend/routers/engine.py 신규:
+  - POST /api/engine/config: EngineConfigRequest(engine_mode, colab_url 조건부 필수), colab URL 도달성 검증(GET /api/tags), 결과 저장 + set_base_url 호출, 미도달 시 warning 포함 200 응답
+  - GET /api/engine/status: check_health() 호출 → {engine_mode, base_url, connected, model_available, error}
+- backend/main.py: engine_router 등록 (prefix="/api/engine")
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_engine_api.py (신규)
+- backend/services/engine_config_store.py (신규)
+- backend/services/ollama_client.py (수정 — get_base_url, set_base_url 추가)
+- backend/config.py (수정 — engine_mode, colab_url 필드 추가)
+- backend/routers/engine.py (신규 구현)
+- backend/main.py (수정 — engine_router 등록)
+- PLAN.md (수정 — Part 5 Step 41 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 1515개 전체 GREEN (pytest, 0 failed)
+  - Step 41 신규: 52개 PASSED
+    - TestOllamaClientGetBaseUrl: 3개
+    - TestOllamaClientSetBaseUrl: 6개
+    - TestEngineConfigStore: 8개
+    - TestPostEngineConfig: 13개
+    - TestGetEngineStatus: 12개
+    - TestModeSwitching: 4개
+    - TestBackwardCompatibility: 5개 (기존 38개 test_ollama_client.py 전부 유지)
+  - 기존 1463개 회귀 없음

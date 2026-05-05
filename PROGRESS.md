@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 39 완료 / Step 40 대기
+## 현재 진행 단계: Step 41 완료 / Step 42 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -52,8 +52,8 @@
 - [x] Step 37: Directive Panel UI (2026-05-04) — 8-agent accordion panel, 33 tests PASS
 - [x] Step 38: Config Panel + Execution Panel (2026-05-04) — ConfigPanel + ExecutionPanel, 44 tests PASS
 - [x] Step 39: Result Panel (2026-05-04) — ResultPanel + MetricsChart + PipelineViewer, 47 tests PASS
-- [ ] Step 40: 로그 패널 + UI-API 통합 테스트
-- [ ] Step 41: OllamaClient 원격 URL 지원 + Engine Config API
+- [x] Step 40: 로그 패널 + UI-API 통합 테스트 (2026-05-05)
+- [x] Step 41: OllamaClient 원격 URL 지원 + Engine Config API (2026-05-05)
 - [ ] Step 42: Colab 셋업 노트북 생성기 + 다운로드 API
 - [ ] Step 43: AI Engine 설정 UI (Local / Colab 전환 패널)
 
@@ -1326,3 +1326,35 @@
   - Step 35 회귀: 27개 PASS
   - Step 34 회귀: 47개 PASS
   - Step 33 회귀: 17개 PASS
+
+### Step 41: OllamaClient 원격 URL 지원 + Engine Config API (2026-05-05) ✅
+
+**작업 결과:**
+- OllamaClient: get_base_url(), async set_base_url(url) 메서드 추가 (기존 API 완전 호환)
+- backend/services/engine_config_store.py: EngineConfigStore 신규 (get/save/reset + singleton)
+- backend/config.py: engine_mode("local"), colab_url(None) 필드 추가
+- backend/routers/engine.py: POST /config + GET /status 엔드포인트 구현
+- backend/main.py: engine_router 등록 (prefix="/api/engine")
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/test_engine_api.py (신규)
+- backend/services/engine_config_store.py (신규)
+- backend/services/ollama_client.py (수정)
+- backend/config.py (수정)
+- backend/routers/engine.py (신규 구현)
+- backend/main.py (수정)
+
+**테스트 결과:**
+- 1515개 전체 GREEN (pytest, 0 failed)
+  - Step 41 신규: 52개 PASSED
+    - TestOllamaClientGetBaseUrl: 3개
+    - TestOllamaClientSetBaseUrl: 6개
+    - TestEngineConfigStore: 8개
+    - TestPostEngineConfig: 13개
+    - TestGetEngineStatus: 12개
+    - TestModeSwitching: 4개
+    - TestBackwardCompatibility: 5개
+  - 기존 1463개 회귀 없음

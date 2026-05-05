@@ -52,6 +52,15 @@ class OllamaClient:
             self._client = None
             self._owned = False
 
+    def get_base_url(self) -> str:
+        return self.base_url
+
+    async def set_base_url(self, url: str) -> None:
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+        self.base_url = url
+
     def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient()
