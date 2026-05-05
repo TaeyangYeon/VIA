@@ -3,9 +3,11 @@
 from typing import Literal, Optional
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, model_validator
 
+from backend.services.colab_notebook_generator import ColabNotebookGenerator
 from backend.services.engine_config_store import engine_config_store
 from backend.services.ollama_client import OllamaConnectionError, OllamaModelNotFoundError, ollama_client
 
@@ -76,3 +78,19 @@ async def get_engine_status():
         "model_available": model_available,
         "error": error,
     }
+
+
+@router.get("/setup-notebook")
+def download_setup_notebook(model: str = Query(default="gemma4:e4b")):
+    try:
+        nb = ColabNotebookGenerator().generate(model=model)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    import nbformat as _nbformat
+    nb_json = _nbformat.writes(nb)
+    filename = f"via_colab_setup_notebook_{model.replace(':', '_')}.ipynb"
+    return JSONResponse(
+        content=_nbformat.reads(nb_json, as_version=4),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

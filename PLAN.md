@@ -2429,3 +2429,34 @@ Badge Error       bg-red-500/20 text-red-400
     - TestModeSwitching: 4개
     - TestBackwardCompatibility: 5개 (기존 38개 test_ollama_client.py 전부 유지)
   - 기존 1463개 회귀 없음
+
+### Step 42: Colab Setup Notebook Generator + Download API (2026-05-05)
+
+**작업 결과:**
+- backend/services/colab_notebook_generator.py 신규: ColabNotebookGenerator 클래스
+  - generate(model="gemma4:e4b") → nbformat.NotebookNode
+  - 허용 모델: "gemma4:e4b", "gemma4:27b" (그 외 ValueError)
+  - 7개 셀 생성: markdown 타이틀, markdown 설명, Ollama 설치(curl), Ollama 서버 기동(nohup ollama serve), 모델 pull, cloudflared 터널, markdown 안내
+  - nbformat v4 사용 (nbformat 5.10.4)
+- backend/routers/engine.py 수정:
+  - GET /api/engine/setup-notebook: model 쿼리 파라미터(기본 "gemma4:e4b"), 잘못된 모델 → HTTP 400, 유효 시 JSONResponse + Content-Disposition: attachment 헤더
+
+**발생 이슈:**
+- `starlette.testclient.TestClient` 가 httpx 0.28.1과 호환 불가 (TypeError: 'app' unexpected keyword). 기존 프로젝트 패턴과 동일하게 `httpx.AsyncClient` + `@pytest.mark.anyio` 방식으로 엔드포인트 테스트 전환.
+- 서버 기동 셀에서 `['nohup', 'ollama', 'serve']` subprocess.Popen 방식은 소스에 문자열 "ollama serve"가 없어 테스트 실패. `!nohup ollama serve &` 매직 커맨드 방식으로 수정.
+
+**생성/수정 파일:**
+- tests/test_colab_notebook_generator.py (신규)
+- backend/services/colab_notebook_generator.py (신규)
+- backend/routers/engine.py (수정 — GET /setup-notebook 엔드포인트 추가)
+- PLAN.md (수정 — Part 5 Step 42 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 1538개 전체 GREEN (pytest, 0 failed)
+  - Step 42 신규: 23개 PASSED
+    - TestColabNotebookGeneratorStructure: 14개
+      - generate 반환 타입, 기본 모델, 모델명 셀 포함, 셀 수(7), 셀 타입 순서, 타이틀 VIA, 타이틀 정확, curl+ollama, ollama serve, pull 셀, cloudflared+tunnel, 잘못된 모델 ValueError, 27b 모델, nbformat.validate()
+    - TestSetupNotebookEndpoint: 9개 (asyncio)
+      - 200 응답, content-type json, Content-Disposition setup_notebook, attachment, 기본 모델, gemma4:27b, 400 잘못된 모델, JSON notebook 구조, 셀 내 모델명
+  - 기존 1515개 회귀 없음

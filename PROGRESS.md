@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 41 완료 / Step 42 대기
+## 현재 진행 단계: Step 42 완료 / Step 43 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -54,7 +54,7 @@
 - [x] Step 39: Result Panel (2026-05-04) — ResultPanel + MetricsChart + PipelineViewer, 47 tests PASS
 - [x] Step 40: 로그 패널 + UI-API 통합 테스트 (2026-05-05)
 - [x] Step 41: OllamaClient 원격 URL 지원 + Engine Config API (2026-05-05)
-- [ ] Step 42: Colab 셋업 노트북 생성기 + 다운로드 API
+- [x] Step 42: Colab 셋업 노트북 생성기 + 다운로드 API (2026-05-05)
 - [ ] Step 43: AI Engine 설정 UI (Local / Colab 전환 패널)
 
 ## Phase 7: 통합 & E2E
@@ -1358,3 +1358,33 @@
     - TestModeSwitching: 4개
     - TestBackwardCompatibility: 5개
   - 기존 1463개 회귀 없음
+
+### Step 42: Colab 셋업 노트북 생성기 + 다운로드 API (2026-05-05) ✅
+
+**작업 결과:**
+- backend/services/colab_notebook_generator.py 신규: ColabNotebookGenerator
+  - generate(model="gemma4:e4b") → nbformat.NotebookNode (nbformat v4)
+  - 허용 모델: "gemma4:e4b", "gemma4:27b" (외 ValueError)
+  - 7개 셀: markdown 타이틀("VIA — Colab AI Engine Setup"), markdown 설명(GPU 런타임 필수), Ollama 설치(curl), 서버 기동(nohup ollama serve), 모델 pull, cloudflared 터널, markdown 안내
+- backend/routers/engine.py 수정: GET /api/engine/setup-notebook
+  - model 쿼리 파라미터(기본 "gemma4:e4b"), 잘못된 모델 → HTTP 400, JSONResponse + Content-Disposition: attachment 헤더
+
+**발생 이슈:**
+- starlette 0.27.0 + httpx 0.28.1 호환 문제: TestClient 사용 불가(TypeError: 'app' unexpected keyword). 기존 프로젝트 패턴과 동일하게 httpx.AsyncClient + @pytest.mark.anyio 방식으로 엔드포인트 테스트 구현.
+- subprocess.Popen(['nohup', 'ollama', 'serve']) 방식은 셀 소스에 "ollama serve" 문자열 없어 테스트 실패 → `!nohup ollama serve &` Colab 매직 커맨드 방식으로 수정.
+
+**생성/수정 파일:**
+- tests/test_colab_notebook_generator.py (신규)
+- backend/services/colab_notebook_generator.py (신규)
+- backend/routers/engine.py (수정 — GET /setup-notebook 추가)
+- PLAN.md (수정 — Part 5 Step 42 추가)
+- PROGRESS.md (수정)
+
+**테스트 결과:**
+- 1538개 전체 GREEN (pytest, 0 failed)
+  - Step 42 신규: 23개 PASSED
+    - TestColabNotebookGeneratorStructure: 14개
+      - generate 반환 타입, 기본 모델, 모델명 셀, 셀 수(7), 셀 타입 순서, VIA 타이틀, 정확한 타이틀, curl+ollama, ollama serve, pull 셀, cloudflared+tunnel, ValueError, 27b, nbformat.validate()
+    - TestSetupNotebookEndpoint: 9개 (asyncio)
+      - 200 응답, content-type json, Content-Disposition setup_notebook, attachment, 기본 모델, gemma4:27b, 400 잘못된 모델, JSON 구조, 셀 내 모델명
+  - 기존 1515개 회귀 없음
