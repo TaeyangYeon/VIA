@@ -2578,3 +2578,38 @@ Badge Error       bg-red-500/20 text-red-400
 - test_vision_judge_differentiates_good_and_bad_processing: 재실행 예정
 - test_pipeline_produces_executable_code: 재실행 예정
 - 비통합 테스트 전체: 통합 마커 없는 기존 테스트 회귀 없음
+
+---
+
+### Step 45: Align 전체 파이프라인 E2E (2026-05-06)
+
+**작업 결과:**
+- Align 합성 이미지 생성기 구현 (generate_align_images.py): 어두운 배경(10-30 노이즈) + 흰색 원(반지름 30px) + 십자선, GT 좌표를 파일명에 인코딩
+  - X_320.0_Y_240.0_1.png (중앙), X_160.0_Y_120.0_2.png (좌상단), X_480.0_Y_360.0_3.png (우하단), X_250.5_Y_200.5_4.png (소수점 오프셋)
+- Align E2E 테스트 파일 구현 (tests/e2e/test_align_pipeline.py):
+  - Step 44 패턴 완전 준수: VIA_OLLAMA_URL, check_ollama_available, reset_singleton_client, real_ollama_client, anyio_backend
+  - TestAlignImagesValid (마커 없음): 4개 이미지 형상·dtype·밝기·배경 검증 — 이미지 없을 시 RED, 생성 후 GREEN
+  - TestE2EAlignPipeline (integration+e2e):
+    - test_full_align_pipeline_executes: Orchestrator 전체 실행 — spec.mode="align" 확인, inspection_plan=None/algorithm_category=None (align 모드 스킵 항목), algo.category=TEMPLATE_MATCHING, coord_error/success_rate 메트릭
+    - test_individual_align_agent_outputs: 9개 에이전트 순차 실행 (SpecAgent~EvaluationAgent) 타입/범위 검증
+    - test_decision_agent_returns_rule_based_for_align: 이력 0/1/5개 모든 케이스에서 RULE_BASED 강제 (sync, Ollama 불필요)
+    - test_align_code_has_valid_signature: 생성 코드 → exec → align(image) → {x,y,confidence,method_used} dict 검증 (3회 재시도)
+    - test_code_validator_rejects_missing_align_function: 잘못된 함수명·시그니처 거부, 올바른 코드 허용 검증 (sync, Ollama 불필요)
+- 발생 이슈: pytest -k "not integration and not e2e"가 경로의 e2e 디렉토리명까지 필터링 → -m 옵션으로 전환
+
+**생성/수정 파일:**
+- tests/fixtures/sample_images/generate_align_images.py (신규)
+- tests/fixtures/sample_images/X_320.0_Y_240.0_1.png (생성)
+- tests/fixtures/sample_images/X_160.0_Y_120.0_2.png (생성)
+- tests/fixtures/sample_images/X_480.0_Y_360.0_3.png (생성)
+- tests/fixtures/sample_images/X_250.5_Y_200.5_4.png (생성)
+- tests/e2e/test_align_pipeline.py (신규)
+- PROGRESS.md (수정 — Step 45 [x] 추가, 현재 진행 단계 갱신)
+- PLAN.md (수정 — Step 45 실행 로그 추가)
+
+**테스트 결과:**
+- test_align_images_are_valid: PASSED (0.44s) ✅
+- test_decision_agent_returns_rule_based_for_align: sync, Ollama 없이 실행 가능 ✅
+- test_code_validator_rejects_missing_align_function: sync, Ollama 없이 실행 가능 ✅
+- @integration @e2e 테스트 3개: Taeyang 수동 실행 예정 (Gemma4 필요)
+- 기존 비통합 백엔드 테스트: 1541 passed, 0 failed — 회귀 없음 ✅

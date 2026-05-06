@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 44 완료 / Step 45 대기
+## 현재 진행 단계: Step 45 완료 / Step 46 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -59,7 +59,7 @@
 
 ## Phase 7: 통합 & E2E
 - [x] Step 44: Inspection 전체 파이프라인 E2E (2026-05-06)
-- [ ] Step 45: Align 전체 파이프라인 E2E
+- [x] Step 45: Align 전체 파이프라인 E2E (2026-05-06)
 - [ ] Step 46: Agent Directive E2E 테스트
 - [ ] Step 47: 성능 최적화 (Vision Judge 속도)
 - [ ] Step 48: 에러 처리 강화 + 결과 내보내기
@@ -1436,3 +1436,41 @@
       - rendering 5개, on mount 6개, local mode 6개, mode switching 6개
       - colab mode UI 7개, download notebook 2개, connection test 6개, save button 3개
   - 기존 303개 회귀 없음
+
+### Step 45: Align 전체 파이프라인 E2E (2026-05-06)
+
+**작업 결과:**
+- Align 합성 테스트 이미지 생성 스크립트 구현 (tests/fixtures/sample_images/generate_align_images.py):
+  - 640×480 그레이스케일 4개 이미지 — 어두운 배경(노이즈 포함, 10-30 밝기)에 밝은 흰색 원(반지름 30px) + 십자선
+  - X_320.0_Y_240.0_1.png (이미지 중앙), X_160.0_Y_120.0_2.png (좌상단), X_480.0_Y_360.0_3.png (우하단), X_250.5_Y_200.5_4.png (소수점 오프셋)
+  - 파일명에 GT 좌표 인코딩: X_{float}_Y_{float}_{index}.png 패턴 — TestAgentAlign._parse_ground_truth()와 호환
+  - numpy RNG seed=42로 재현성 보장; cv2.imwrite PNG 저장
+- E2E 통합 테스트 구현 (tests/e2e/test_align_pipeline.py):
+  - 6개 테스트 케이스: 3개 @anyio @integration+@e2e (Gemma4 필요), 2개 sync @integration+@e2e (Ollama 불필요), 1개 마커 없음 (이미지 유효성)
+  - TestAlignImagesValid::test_align_images_are_valid — 4개 이미지 형상(480×640), dtype(uint8), 밝은 피처(max≥200), 어두운 배경(mean<100) 검증
+  - TestE2EAlignPipeline::test_full_align_pipeline_executes — Orchestrator.execute() align 모드 전체 실행: spec.mode="align", inspection_plan=None, algorithm_category=None, algo.category=TEMPLATE_MATCHING, coord_error/success_rate 메트릭 검증
+  - TestE2EAlignPipeline::test_individual_align_agent_outputs — 9개 에이전트 순차 검증 (SpecAgent→ImageAnalysis→PipelineComposer→ParameterSearcher→VisionJudge→AlgorithmCoderAlign→CodeValidator→TestAgentAlign→EvaluationAgent)
+  - TestE2EAlignPipeline::test_decision_agent_returns_rule_based_for_align — 반복 이력 0/1/5개 시나리오 전부에서 RULE_BASED 반환 + "하드웨어"/"정렬" 포함 이유 메시지 검증 (sync, Ollama 불필요)
+  - TestE2EAlignPipeline::test_align_code_has_valid_signature — 생성 코드 ast.parse → align(image) 함수 존재 → exec() → align(image) 호출 → {x, y, confidence, method_used} 딕셔너리 반환 검증 (최대 3회 재시도)
+  - TestE2EAlignPipeline::test_code_validator_rejects_missing_align_function — 잘못된 함수명(detect), 잘못된 시그니처(extra arg), 올바른 코드 3가지 케이스 검증 (sync, Ollama 불필요)
+  - Step 44 패턴 완전 준수: VIA_OLLAMA_URL, check_ollama_available, reset_singleton_client autouse, real_ollama_client function-scoped, anyio_backend params=["asyncio"], create_real_orchestrator, log_agent_output
+
+**발생 이슈:**
+- pytest -k "not integration and not e2e" 사용 시 tests/e2e/ 디렉토리 경로에 "e2e" 포함으로 인해 비통합 테스트까지 전부 deselect됨 → pytest -m "not integration and not e2e" 사용으로 전환
+
+**생성/수정 파일:**
+- tests/fixtures/sample_images/generate_align_images.py (신규)
+- tests/fixtures/sample_images/X_320.0_Y_240.0_1.png (생성)
+- tests/fixtures/sample_images/X_160.0_Y_120.0_2.png (생성)
+- tests/fixtures/sample_images/X_480.0_Y_360.0_3.png (생성)
+- tests/fixtures/sample_images/X_250.5_Y_200.5_4.png (생성)
+- tests/e2e/test_align_pipeline.py (신규)
+- PROGRESS.md (수정 — Step 45 [x] 추가, 현재 진행 단계 갱신)
+- PLAN.md (수정 — Step 45 실행 로그 추가)
+
+**테스트 결과 (로컬 Intel Mac, TDD):**
+- test_align_images_are_valid: PASSED (Ollama 불필요, 0.44s) — RED(이미지 없음) → 생성기 실행 → GREEN ✅
+- test_decision_agent_returns_rule_based_for_align: Ollama 없이 실행 가능 (sync, integration 마커로 보호)
+- test_code_validator_rejects_missing_align_function: Ollama 없이 실행 가능 (sync, integration 마커로 보호)
+- @integration @e2e 테스트 3개: Gemma4 live 연결 시 Taeyang 수동 실행 예정
+- 기존 비통합 백엔드 테스트: 1541 passed, 0 failed — 회귀 없음 ✅
