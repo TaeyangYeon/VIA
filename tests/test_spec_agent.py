@@ -260,3 +260,30 @@ class TestSpecAgentJsonParsing:
                 await agent.execute(user_text="find defects")
 
         assert mock_client.generate.call_count == 2
+
+
+# ── _apply_defaults None handling ────────────────────────────────────────────
+
+class TestApplyDefaultsNoneHandling:
+    def test_apply_defaults_filters_none_values(self):
+        from agents.spec_agent import _apply_defaults
+        result = _apply_defaults(
+            InspectionMode.inspection,
+            {"accuracy": None, "fp_rate": 0.01},
+        )
+        assert result["accuracy"] == 0.95
+        assert result["fp_rate"] == 0.01
+
+    def test_apply_defaults_all_none_returns_full_defaults(self):
+        from agents.spec_agent import _apply_defaults
+        result = _apply_defaults(
+            InspectionMode.inspection,
+            {"accuracy": None, "fp_rate": None, "fn_rate": None},
+        )
+        assert result == {"accuracy": 0.95, "fp_rate": 0.05, "fn_rate": 0.05}
+
+    def test_apply_defaults_non_none_values_preserved(self):
+        from agents.spec_agent import _apply_defaults
+        result = _apply_defaults(InspectionMode.inspection, {"accuracy": 0.99})
+        assert result["accuracy"] == 0.99
+        assert result["fp_rate"] == 0.05

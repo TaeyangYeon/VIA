@@ -23,7 +23,8 @@ def _apply_defaults(mode: InspectionMode, criteria: dict) -> dict:
         defaults = _ALIGN_DEFAULTS
     else:
         defaults = _INSPECTION_DEFAULTS
-    return {**defaults, **criteria}
+    filtered = {k: v for k, v in criteria.items() if v is not None}
+    return {**defaults, **filtered}
 
 
 class SpecAgent(BaseAgent):

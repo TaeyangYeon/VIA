@@ -2613,3 +2613,85 @@ Badge Error       bg-red-500/20 text-red-400
 - test_code_validator_rejects_missing_align_function: sync, Ollama 없이 실행 가능 ✅
 - @integration @e2e 테스트 3개: Taeyang 수동 실행 예정 (Gemma4 필요)
 - 기존 비통합 백엔드 테스트: 1541 passed, 0 failed — 회귀 없음 ✅
+
+---
+
+### Step 46: Agent Directive E2E 테스트 (2026-05-06)
+
+**작업 결과:**
+- Agent Directive 동작 검증 테스트 파일 구현 (tests/e2e/test_directive_e2e.py):
+  - Step 44/45 패턴 완전 준수: VIA_OLLAMA_URL, check_ollama_available, reset_singleton_client autouse, real_ollama_client function-scoped, anyio_backend params=["asyncio"]
+  - 헬퍼 함수: make_diagnosis(**overrides) → ImageDiagnosis, _has_morphology(pipeline) → block_library 기반, create_real_orchestrator(), _assert_valid_inspection_result()
+
+**비통합 테스트 (31개, 마커 없음):**
+- TestPromptBuilders (6개): build_spec_prompt/build_inspection_plan_prompt/build_vision_judge_prompt — 디렉티브 포함/미포함 문자열 검증
+- TestPipelineComposerDirective (6개): "Blob"/"블롭"/"blob" → morphology 파이프라인 우선 정렬(sort key=0), 기본 순서=적극적_노이즈제거_파이프라인 첫째, 커스텀 디렉티브 크래시 없음, 파이프라인 수 5개 보존
+- TestAlgorithmSelectorDirectiveIndependence (3개): BLOB 케이스(contrast=0.5/blob=0.7), COLOR_FILTER 케이스(discriminability=0.7), 폴백 BLOB 케이스 — 5가지 디렉티브 모두 동일 출력
+- TestFeedbackControllerDirective (3개): pipeline_bad_params → parameter_searcher 불변, 디렉티브 저장 확인, 모든 FailureReason 케이스(신선한 인스턴스 per 케이스)
+- TestEvaluationAgentDirective (3개): 통과(accuracy=0.9) 불변, 실패(accuracy=0.3, fp=0.4, fn=0.4) 불변, 디렉티브 저장 확인
+- TestImageAnalysisAgentDirective (3개): 동일 이미지(100×100 회색+어두운 사각) → contrast/noise/edge/blob/surface 동일, None 디렉티브 크래시 없음
+- TestParameterSearcherDirective (2개): copy.deepcopy 파이프라인 쌍 → 디렉티브 유무 score 일치(random.Random(42) 결정론적), 디렉티브 저장 확인
+- TestOrchestratorDistributeDirectives (5개, MagicMock): 전체 7필드 → 9개 에이전트 set_directive 호출 검증, None 필드 건너뜀, directives=None 무동작, algorithm_coder → inspection+align 양쪽, test → inspection+align 양쪽
+
+**통합 테스트 (8개, @integration @e2e @anyio):**
+- TestSpecAgentWithDirective (2개): 디렉티브 "정확도를 최대한 높이는 방향" 유/무 — SpecResult(mode, goal, success_criteria) 구조 검증
+- TestVisionJudgeAgentWithDirective (2개): 디렉티브 "엣지 명확도를 중점으로 평가" 유/무 — JudgementResult 3개 스코어 [0,1] 범위 검증
+- TestInspectionPlanAgentWithDirective (2개): 디렉티브 "BLOB 검출 위주로 계획 수립" 유/무 — InspectionPlan 항목 존재·id·name·method 검증
+- TestOrchestratorWithDirectives (2개): 디렉티브 유(spec+pipeline_composer+inspection_plan) / 무 — _assert_valid_inspection_result: 13개 키, 타입 모두 검증 (max_iteration=1)
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/e2e/test_directive_e2e.py (신규)
+- PROGRESS.md (수정 — Step 46 [x] 추가, 현재 진행 단계 갱신)
+- PLAN.md (수정 — Step 46 실행 로그 추가)
+
+**테스트 결과:**
+- 비통합 테스트: 31 passed, 0 failed (1.31s) ✅
+- 전체 비통합 회귀: 1576 passed, 0 failed — 회귀 없음 ✅
+- @integration @e2e 테스트 8개: Gemma4 live 연결 시 Taeyang 수동 실행 예정
+
+---
+
+### Step 46 (버그픽스): Integration 테스트 실패 수정 (2026-05-06)
+
+**작업 결과:**
+- 실제 Gemma4 연동(Colab 터널) E2E 테스트 실행 중 발견된 3가지 버그 수정
+
+**Fix 1 — `agents/spec_agent.py` `_apply_defaults()` None 필터링:**
+- 원인: Gemma4가 `{"accuracy": null, "fp_rate": null, "fn_rate": null}` 반환 시 `{**defaults, **criteria}` merge에서 None이 기본값(0.95, 0.05 등)을 덮어써 다운스트림에서 None 전파
+- 수정: `filtered = {k: v for k, v in criteria.items() if v is not None}`으로 None 필터링 후 병합
+- 테스트 RED: `test_apply_defaults_filters_none_values` — `result["accuracy"] == 0.95` 실패 (실제 None)
+- 테스트 GREEN: 수정 후 None 필터링으로 기본값 복원 확인
+
+**Fix 2 — `agents/orchestrator.py` `_validate_goals()` 방어적 None 처리:**
+- 원인: `criteria.get("accuracy", 0)` — 키가 존재하나 값이 None이면 0이 아닌 None 반환 → `None > 0.99` TypeError
+- 수정: 4개 비교문 전부 `(criteria.get("key") or fallback_value)` 패턴으로 교체 (None → falsy → fallback 사용)
+- 테스트 RED: `test_validate_goals_handles_none_criteria_values` — TypeError 발생
+- 테스트 GREEN: 수정 후 빈 리스트 반환 확인
+
+**Fix 3 — Colab 터널 cold-start 워밍업:**
+- 원인: Gemma4 모델이 GPU에 로드되기 전 첫 요청이 524/timeout으로 실패
+- 수정: `check_ollama_available` 세션 픽스처에 워밍업 스텝 추가 — 3개 E2E 파일 모두 적용
+  - 모델 존재 확인 후 `POST /api/generate {"model": "gemma4:e4b", "prompt": "Say OK", "stream": false}` (timeout=600s)
+  - 워밍업 예외 시 경고 출력만, 테스트 중단 없음 (non-fatal)
+
+**발생 이슈:**
+- `_apply_defaults`: None 필터링 없이 merge → None이 기본값 오버라이드 → `_validate_goals` TypeError 체인
+- Colab cold-start: 세션당 1회 워밍업으로 첫 추론 지연 문제 해소
+
+**생성/수정 파일:**
+- agents/spec_agent.py (수정 — None 필터링 1줄)
+- agents/orchestrator.py (수정 — 4개 비교문 or 패턴)
+- tests/e2e/test_directive_e2e.py (수정 — 워밍업 13줄)
+- tests/e2e/test_inspection_pipeline.py (수정 — 워밍업 13줄)
+- tests/e2e/test_align_pipeline.py (수정 — 워밍업 13줄)
+- tests/test_orchestrator_basic.py (수정 — None criteria 테스트 1개)
+- tests/test_spec_agent.py (수정 — TestApplyDefaultsNoneHandling 3개)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 신규: 4개 PASSED (RED 확인 후 GREEN) ✅
+- 전체 비통합: 1580 passed, 0 failed — 회귀 없음 ✅

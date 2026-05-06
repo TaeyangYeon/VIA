@@ -375,13 +375,13 @@ class Orchestrator(BaseAgent):
         criteria = spec_result.success_criteria
         if not isinstance(criteria, dict):
             return warnings
-        if criteria.get("accuracy", 0) > 0.99:
+        if (criteria.get("accuracy") or 0) > 0.99:
             warnings.append("accuracy > 0.99은 극단적인 목표입니다")
-        if criteria.get("fp_rate", 1.0) < 0.001:
+        if (criteria.get("fp_rate") or 1.0) < 0.001:
             warnings.append("fp_rate < 0.001은 극단적인 목표입니다")
-        if criteria.get("fn_rate", 1.0) < 0.001:
+        if (criteria.get("fn_rate") or 1.0) < 0.001:
             warnings.append("fn_rate < 0.001은 극단적인 목표입니다")
-        if criteria.get("coord_error", 10.0) < 0.5:
+        if (criteria.get("coord_error") or 10.0) < 0.5:
             warnings.append("coord_error < 0.5은 극단적인 목표입니다")
         return warnings
 

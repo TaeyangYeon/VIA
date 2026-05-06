@@ -89,6 +89,18 @@ def check_ollama_available():
             pytest.skip(f"{_MODEL} not available in Ollama")
     except Exception as exc:
         pytest.skip(f"Ollama not reachable: {exc}")
+
+    print(f"\n[E2E] Warming up {_MODEL} (cold-start GPU load, up to 600s)...")
+    try:
+        warmup = httpx.post(
+            f"{OLLAMA_BASE_URL}/api/generate",
+            json={"model": _MODEL, "prompt": "Say OK", "stream": False},
+            timeout=600.0,
+        )
+        print(f"[E2E] Warmup complete: status={warmup.status_code}")
+    except Exception as exc:
+        print(f"[E2E] Warmup failed (non-fatal): {exc}")
+
     return True
 
 

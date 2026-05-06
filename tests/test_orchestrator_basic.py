@@ -311,6 +311,16 @@ class TestGoalValidation:
         result = await orc.execute("detect", [_img()], [])
         assert len(result.get("warnings", [])) == 0
 
+    def test_validate_goals_handles_none_criteria_values(self):
+        orc, _ = _orc()
+        spec = SpecResult(
+            mode=InspectionMode.inspection,
+            goal="test",
+            success_criteria={"accuracy": None, "fp_rate": None, "fn_rate": None, "coord_error": None},
+        )
+        warnings = orc._validate_goals(spec)
+        assert isinstance(warnings, list)
+
 
 # ── Inspection pipeline ──────────────────────────────────────────────────────
 

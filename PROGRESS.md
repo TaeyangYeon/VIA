@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 45 완료 / Step 46 대기
+## 현재 진행 단계: Step 46 완료 (버그픽스 포함) / Step 47 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -60,7 +60,7 @@
 ## Phase 7: 통합 & E2E
 - [x] Step 44: Inspection 전체 파이프라인 E2E (2026-05-06)
 - [x] Step 45: Align 전체 파이프라인 E2E (2026-05-06)
-- [ ] Step 46: Agent Directive E2E 테스트
+- [x] Step 46: Agent Directive E2E 테스트 (2026-05-06)
 - [ ] Step 47: 성능 최적화 (Vision Judge 속도)
 - [ ] Step 48: 에러 처리 강화 + 결과 내보내기
 - [ ] Step 49: Retry 및 Decision 시나리오 통합 테스트
@@ -1474,3 +1474,85 @@
 - test_code_validator_rejects_missing_align_function: Ollama 없이 실행 가능 (sync, integration 마커로 보호)
 - @integration @e2e 테스트 3개: Gemma4 live 연결 시 Taeyang 수동 실행 예정
 - 기존 비통합 백엔드 테스트: 1541 passed, 0 failed — 회귀 없음 ✅
+
+
+### Step 46: Agent Directive E2E 테스트 (2026-05-06) ✅
+
+**작업 결과:**
+- Agent Directive 동작 검증 E2E 테스트 파일 구현 (tests/e2e/test_directive_e2e.py):
+  - 39개 테스트 케이스: 31개 비통합(마커 없음) + 8개 @integration @e2e
+  - Step 44/45 패턴 완전 준수: VIA_OLLAMA_URL, check_ollama_available, reset_singleton_client autouse, real_ollama_client function-scoped, anyio_backend params=["asyncio"]
+
+**테스트 카테고리 (비통합 — 31개):**
+- TestPromptBuilders (6개): spec/inspection_plan/vision_judge 프롬프트 빌더 — 디렉티브 포함/미포함 검증
+- TestPipelineComposerDirective (6개): "Blob"/"blob"/"블롭" 키워드 → morphology 파이프라인 우선 정렬, 기본 순서 유지, 커스텀 디렉티브 크래시 없음, 파이프라인 수 보존
+- TestAlgorithmSelectorDirectiveIndependence (3개): BLOB/COLOR_FILTER/폴백 케이스 — 디렉티브가 결정 트리 출력 변경 안 함
+- TestFeedbackControllerDirective (3개): 피드백 매핑 불변, 디렉티브 저장 확인, 모든 FailureReason 케이스
+- TestEvaluationAgentDirective (3개): 통과/실패 평가 불변, 디렉티브 저장 확인
+- TestImageAnalysisAgentDirective (3개): 연산 결과 불변(contrast/noise/edge/blob/surface), None 디렉티브 크래시 없음
+- TestParameterSearcherDirective (2개): 검색 결과 결정론적 일치(score), 디렉티브 저장 확인
+- TestOrchestratorDistributeDirectives (5개, MagicMock): 전체 필드 라우팅, None 필드 건너뜀, directives=None 무동작, algorithm_coder → 양쪽 코더, test → 양쪽 테스트 에이전트
+
+**테스트 카테고리 (통합 — 8개, @integration @e2e):**
+- TestSpecAgentWithDirective (2개): 디렉티브 유/무 — SpecResult 구조 검증
+- TestVisionJudgeAgentWithDirective (2개): 디렉티브 유/무 — JudgementResult 스코어 범위 검증
+- TestInspectionPlanAgentWithDirective (2개): 디렉티브 유/무 — InspectionPlan 항목 검증
+- TestOrchestratorWithDirectives (2개): 디렉티브 유/무 풀 파이프라인 — 13개 키 존재 + 타입 구조 검증 (max_iteration=1)
+
+**발생 이슈:**
+- 없음
+
+**생성/수정 파일:**
+- tests/e2e/test_directive_e2e.py (신규)
+- PROGRESS.md (수정 — Step 46 [x] 추가, 현재 진행 단계 갱신)
+- PLAN.md (수정 — Step 46 실행 로그 추가)
+
+**테스트 결과:**
+- 비통합 테스트: 31 passed (pytest -m "not integration and not e2e", 1.31s) ✅
+  - TestPromptBuilders: 6개
+  - TestPipelineComposerDirective: 6개
+  - TestAlgorithmSelectorDirectiveIndependence: 3개
+  - TestFeedbackControllerDirective: 3개
+  - TestEvaluationAgentDirective: 3개
+  - TestImageAnalysisAgentDirective: 3개
+  - TestParameterSearcherDirective: 2개
+  - TestOrchestratorDistributeDirectives: 5개
+- 전체 비통합 회귀: 1576 passed, 0 failed — 회귀 없음 ✅
+- @integration @e2e 테스트 8개: Gemma4 live 연결 시 Taeyang 수동 실행 예정
+
+
+### Step 46 (버그픽스): Integration 테스트 실패 수정 (2026-05-06) ✅
+
+**작업 결과:**
+- Fix 1 — `agents/spec_agent.py` `_apply_defaults()` None 필터링:
+  - Gemma4가 `{"accuracy": null, "fp_rate": null}` 반환 시 dict merge에서 None이 기본값을 덮어쓰는 버그 수정
+  - `filtered = {k: v for k, v in criteria.items() if v is not None}` 후 `{**defaults, **filtered}` 병합
+- Fix 2 — `agents/orchestrator.py` `_validate_goals()` 방어적 None 처리:
+  - `criteria.get("key", default)` 패턴이 키가 존재하나 값이 None인 경우 None을 반환 → `None > 0.99` TypeError 발생
+  - 4개 비교문 전부 `(criteria.get("key") or default_value)` 패턴으로 교체
+- Fix 3 — Colab 터널 cold-start 워밍업:
+  - 3개 E2E 테스트 파일(`test_directive_e2e.py`, `test_inspection_pipeline.py`, `test_align_pipeline.py`)의 `check_ollama_available` 세션 픽스처에 워밍업 스텝 추가
+  - 모델 존재 확인 후 `POST /api/generate {"prompt": "Say OK", "stream": false}` 요청 (timeout=600s)
+  - 워밍업 실패 시 경고 출력만, 테스트 스킵/실패 없음 (non-fatal)
+
+**발생 이슈 (실제 Gemma4 연동 시):**
+- 이슈 1: Gemma4가 success_criteria에 null 값 반환 → `_apply_defaults`에서 None이 기본값 덮어씀 → `_validate_goals`에서 `None > 0.99` TypeError → 수정: None 필터링 + 방어적 `or` 패턴
+- 이슈 2: Colab 터널 cold-start 시 첫 요청 524 타임아웃 → 수정: `check_ollama_available` 세션 픽스처에 워밍업 추가
+
+**생성/수정 파일:**
+- agents/spec_agent.py (수정 — `_apply_defaults` None 필터링)
+- agents/orchestrator.py (수정 — `_validate_goals` 방어적 None 처리)
+- tests/e2e/test_directive_e2e.py (수정 — 워밍업 추가)
+- tests/e2e/test_inspection_pipeline.py (수정 — 워밍업 추가)
+- tests/e2e/test_align_pipeline.py (수정 — 워밍업 추가)
+- tests/test_orchestrator_basic.py (수정 — `test_validate_goals_handles_none_criteria_values` 추가)
+- tests/test_spec_agent.py (수정 — `TestApplyDefaultsNoneHandling` 3개 테스트 추가)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+- 신규 테스트 4개: tests/test_orchestrator_basic.py::TestGoalValidation::test_validate_goals_handles_none_criteria_values + tests/test_spec_agent.py::TestApplyDefaultsNoneHandling::test_apply_defaults_filters_none_values/test_apply_defaults_all_none_returns_full_defaults/test_apply_defaults_non_none_values_preserved → 전부 PASSED ✅
+  - RED(수정 전): 3개 FAILED (TypeError, None != 0.95, None != 기본값) ✅ 확인
+  - GREEN(수정 후): 4개 PASSED ✅
+- 전체 비통합 회귀: 1580 passed, 0 failed — 회귀 없음 ✅
+  - 1576 (Step 46 기존) + 4 (버그픽스 신규) = 1580
