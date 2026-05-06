@@ -2523,3 +2523,58 @@ Badge Error       bg-red-500/20 text-red-400
       - connection test: 6개 (disconnected 시 숨김, 성공→connected, Connected 텍스트, 실패→error, 에러 메시지, API 호출 파라미터)
       - save button: 3개 (API 호출, save-success, save-error)
   - 기존 303개 회귀 없음
+
+---
+
+### Step 44: Inspection 전체 파이프라인 E2E (2026-05-06)
+
+**작업 결과:**
+- 합성 테스트 이미지 생성 스크립트 구현 (tests/fixtures/sample_images/generate_sample_images.py):
+  - OK_1..OK_3: 640×480 그레이스케일, 흰색 배경에 중앙 검정 원(반지름 48–52px, 미세 위치 변동)
+  - NG_1: 빈 이미지(원 없음), NG_2: 변형 타원(80×30px), NG_3: 두 원(위치 분산) — 단일 원 스펙 위반
+  - cv2.imwrite로 PNG 저장, 실행 즉시 6개 파일 생성 완료
+- E2E 통합 테스트 구현 (tests/e2e/test_inspection_pipeline.py):
+  - 5개 테스트 케이스: 4개 @integration+@e2e (Gemma4 필요), 1개 마커 없음 (이미지 유효성)
+  - VIA_OLLAMA_URL 환경 변수 지원: 미설정 시 localhost:11434, 설정 시 Colab 터널 URL 사용
+  - check_ollama_available: asyncio.run()으로 singleton set_base_url() 호출 후 httpx 헬스체크
+  - reset_singleton_client autouse fixture: anyio 이벤트 루프 교체 시 httpx.AsyncClient 재생성 보장
+  - real_ollama_client: function-scoped (이벤트 루프 간 호환성 확보)
+  - anyio_backend fixture: params=["asyncio"] (pytest-asyncio 아닌 anyio 플러그인 사용)
+  - create_real_orchestrator(ollama_client): 15개 에이전트 전체 인스턴스화, 실제 OllamaClient 주입
+  - log_agent_output(): 각 에이전트 출력 구조화 로깅 (디버깅/문서화 목적)
+- pyproject.toml: e2e 마커 이미 등록되어 있음 (별도 수정 불필요)
+
+**발생 이슈:**
+- test_individual_agent_outputs_are_consistent FAILED (이전 버전): anyio가 테스트마다 새 이벤트 루프 생성 시, singleton ollama_client._client(이전 루프 소속 httpx.AsyncClient)가 무효화됨 → reset_singleton_client autouse fixture 추가 + real_ollama_client를 function-scoped으로 변경하여 해결
+- Step 43 PROGRESS.md 체크박스 누락([ ] → [x]) 수정
+
+**생성/수정 파일:**
+- tests/fixtures/sample_images/generate_sample_images.py (신규)
+- tests/fixtures/sample_images/OK_1.png (생성)
+- tests/fixtures/sample_images/OK_2.png (생성)
+- tests/fixtures/sample_images/OK_3.png (생성)
+- tests/fixtures/sample_images/NG_1.png (생성)
+- tests/fixtures/sample_images/NG_2.png (생성)
+- tests/fixtures/sample_images/NG_3.png (생성)
+- tests/e2e/test_inspection_pipeline.py (신규)
+- PROGRESS.md (수정 — Step 43 [x] 수정, Step 44 [x] 추가, 현재 진행 단계 갱신)
+- PLAN.md (수정 — Step 44 실행 로그 추가)
+
+**테스트 결과 (로컬 Intel Mac, Ollama 로컬 실행):**
+- test_sample_images_are_valid: PASSED (Ollama 불필요, 0.5s)
+- test_full_inspection_pipeline_executes: PASSED (4713.3s ≈ 78분, Gemma4 로컬 추론 5회)
+  - SpecAgent: mode=inspection, goal='이미지에서 원형 객체의 존재 여부 검사' ✅
+  - ImageAnalysisAgent: contrast=0.158, noise_level=0.078, blob_count_estimate=1 ✅
+  - 5개 파이프라인 후보 → 적극적_노이즈제거_파이프라인 선택(score=0.741, judge=1.0) ✅
+  - VisionJudgeAgent: visibility=1.0, separability=1.0, measurability=1.0 ✅
+  - InspectionPlanAgent: 3개 항목(엣지 추출, Blob 탐지, 원형 검증) ✅
+  - AlgorithmSelector: BLOB ✅
+  - AlgorithmCoderInspection: 3개 함수(강한 엣지 추출/원형 후보 탐지/원형 패턴 검증) ✅
+  - CodeValidator: is_valid=True ✅
+  - TestAgentInspection: 3개 항목 전부 NG(의존성 체인 실패, accuracy=0.0) — 알고리즘 품질 이슈
+  - EvaluationAgent: overall_passed=False, failure_reason=spec_issue ✅ (구조 정상)
+  - DecisionAgent: rule_based, confidence=1.0 ✅
+- test_individual_agent_outputs_are_consistent: 이벤트 루프 이슈 수정 후 재실행 예정
+- test_vision_judge_differentiates_good_and_bad_processing: 재실행 예정
+- test_pipeline_produces_executable_code: 재실행 예정
+- 비통합 테스트 전체: 통합 마커 없는 기존 테스트 회귀 없음

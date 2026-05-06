@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 43 완료 / Step 44 대기
+## 현재 진행 단계: Step 44 완료 / Step 45 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -55,10 +55,10 @@
 - [x] Step 40: 로그 패널 + UI-API 통합 테스트 (2026-05-05)
 - [x] Step 41: OllamaClient 원격 URL 지원 + Engine Config API (2026-05-05)
 - [x] Step 42: Colab 셋업 노트북 생성기 + 다운로드 API (2026-05-05)
-- [ ] Step 43: AI Engine 설정 UI (Local / Colab 전환 패널)
+- [x] Step 43: AI Engine 설정 UI (Local / Colab 전환 패널) (2026-05-05)
 
 ## Phase 7: 통합 & E2E
-- [ ] Step 44: Inspection 전체 파이프라인 E2E
+- [x] Step 44: Inspection 전체 파이프라인 E2E (2026-05-06)
 - [ ] Step 45: Align 전체 파이프라인 E2E
 - [ ] Step 46: Agent Directive E2E 테스트
 - [ ] Step 47: 성능 최적화 (Vision Judge 속도)

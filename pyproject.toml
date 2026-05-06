@@ -8,4 +8,5 @@ requires-python = ">=3.11"
 testpaths = ["tests"]
 markers = [
     "integration: marks tests that require external services (Ollama, etc.)",
+    "e2e: marks end-to-end tests that exercise the full pipeline",
 ]
