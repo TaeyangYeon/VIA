@@ -1,9 +1,12 @@
 """Vision judge agent for multimodal image quality assessment via Gemma4."""
 from __future__ import annotations
 
+import asyncio
 import base64
+import hashlib
 import json
 import re
+from collections import OrderedDict
 from typing import Optional
 
 import cv2
@@ -49,8 +52,49 @@ def _parse_response(text: str) -> JudgementResult:
 
 
 class VisionJudgeAgent(BaseAgent):
-    def __init__(self, directive: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        directive: Optional[str] = None,
+        max_image_size: Optional[int] = 512,
+        cache_max_size: int = 50,
+        timeout: float = 120.0,
+    ) -> None:
         super().__init__("vision_judge", directive)
+        self.max_image_size = max_image_size
+        self.cache_max_size = cache_max_size
+        self.timeout = timeout
+        self._cache: OrderedDict[str, JudgementResult] = OrderedDict()
+        self._hits = 0
+        self._misses = 0
+
+    def _downsample_image(self, image: np.ndarray, max_size: int) -> np.ndarray:
+        h, w = image.shape[:2]
+        if h <= max_size and w <= max_size:
+            return image
+        scale = max_size / max(h, w)
+        new_w = int(round(w * scale))
+        new_h = int(round(h * scale))
+        return cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+    def _compute_cache_key(
+        self,
+        original: np.ndarray,
+        processed: np.ndarray,
+        purpose: str,
+        pipeline_name: str,
+    ) -> str:
+        h = hashlib.sha256()
+        h.update(original.tobytes())
+        h.update(processed.tobytes())
+        h.update(purpose.encode())
+        h.update(pipeline_name.encode())
+        return h.hexdigest()
+
+    def clear_cache(self) -> None:
+        self._cache.clear()
+
+    def get_cache_stats(self) -> dict:
+        return {"hits": self._hits, "misses": self._misses}
 
     async def execute(
         self,
@@ -59,24 +103,52 @@ class VisionJudgeAgent(BaseAgent):
         purpose: str,
         pipeline_name: str,
     ) -> JudgementResult:
+        if self.max_image_size:
+            orig = self._downsample_image(original_image, self.max_image_size)
+            proc = self._downsample_image(processed_image, self.max_image_size)
+        else:
+            orig = original_image
+            proc = processed_image
+
+        cache_key = self._compute_cache_key(orig, proc, purpose, pipeline_name)
+        if cache_key in self._cache:
+            self._hits += 1
+            return self._cache[cache_key]
+
+        self._misses += 1
+
         prompt = build_vision_judge_prompt(
             purpose=purpose,
             pipeline_name=pipeline_name,
             directive=self.get_directive(),
         )
-        images = [_encode_image(original_image), _encode_image(processed_image)]
+        images = [_encode_image(orig), _encode_image(proc)]
 
         for attempt in range(2):
             try:
-                response = await ollama_client.generate_with_images(
-                    prompt, images, system=VISION_JUDGE_SYSTEM_PROMPT
-                )
+                if self.timeout > 0:
+                    response = await asyncio.wait_for(
+                        ollama_client.generate_with_images(
+                            prompt, images, system=VISION_JUDGE_SYSTEM_PROMPT
+                        ),
+                        timeout=self.timeout,
+                    )
+                else:
+                    response = await ollama_client.generate_with_images(
+                        prompt, images, system=VISION_JUDGE_SYSTEM_PROMPT
+                    )
                 if not response:
                     raise ValueError("Empty response from Ollama")
                 result = _parse_response(response)
                 self._log("INFO", f"Judgement complete for pipeline '{pipeline_name}'")
+                if self.cache_max_size > 0:
+                    if len(self._cache) >= self.cache_max_size:
+                        self._cache.popitem(last=False)
+                    self._cache[cache_key] = result
                 return result
             except OllamaError:
+                raise
+            except asyncio.TimeoutError:
                 raise
             except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
                 if attempt == 1:

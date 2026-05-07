@@ -1,6 +1,6 @@
 # VIA Progress
 
-## 현재 진행 단계: Step 46 완료 (버그픽스 포함) / Step 47 대기
+## 현재 진행 단계: Step 47 완료 / Step 48 대기
 
 ## Phase 1: 환경 설정
 - [x] Step 1: Python 환경 초기화 (2026-04-21)
@@ -61,7 +61,7 @@
 - [x] Step 44: Inspection 전체 파이프라인 E2E (2026-05-06)
 - [x] Step 45: Align 전체 파이프라인 E2E (2026-05-06)
 - [x] Step 46: Agent Directive E2E 테스트 (2026-05-06)
-- [ ] Step 47: 성능 최적화 (Vision Judge 속도)
+- [x] Step 47: 성능 최적화 (Vision Judge 속도) (2026-05-07)
 - [ ] Step 48: 에러 처리 강화 + 결과 내보내기
 - [ ] Step 49: Retry 및 Decision 시나리오 통합 테스트
 
@@ -1556,3 +1556,62 @@
   - GREEN(수정 후): 4개 PASSED ✅
 - 전체 비통합 회귀: 1580 passed, 0 failed — 회귀 없음 ✅
   - 1576 (Step 46 기존) + 4 (버그픽스 신규) = 1580
+
+
+### Step 47: 성능 최적화 (Vision Judge 응답 속도) (2026-05-07) ✅
+
+**작업 결과:**
+
+VisionJudgeAgent 3가지 성능 최적화 구현 (agents/vision_judge_agent.py):
+
+- 이미지 다운샘플링: Gemma4 전송 전 max 512px 리사이즈 (cv2.INTER_AREA, 종횡비 유지)
+  - `_downsample_image(image, max_size)`: 장축 기준 스케일링, max_size 이하이면 원본 반환
+  - 생성자 파라미터 `max_image_size=512` (0 또는 None으로 비활성화 가능)
+
+- 결과 캐싱: SHA-256 기반 LRU 캐시 (OrderedDict, 기본 50개)
+  - `_compute_cache_key()`: hashlib.sha256(orig_bytes + proc_bytes + purpose + pipeline_name)
+  - cache hit 시 Ollama 호출 완전 스킵 → 0.0025s 응답
+  - max_size 초과 시 `popitem(last=False)`로 가장 오래된 항목 eviction
+  - `clear_cache()`: 캐시 전체 초기화 (통계는 유지)
+  - `get_cache_stats()`: `{"hits": int, "misses": int}` 반환
+
+- 타임아웃 설정: asyncio.wait_for() 래핑, 생성자 파라미터 `timeout=120.0`
+  - timeout > 0: asyncio.wait_for로 시간 제한 적용
+  - timeout == 0: 무제한 (asyncio.wait_for 미사용)
+  - Intel Mac 로컬은 600s 권장, Colab 원격은 120s 기본값 적합
+
+기존 public API 완전 호환: execute() 시그니처 변경 없음, 기존 37개 테스트 회귀 없음
+
+다운샘플링 후 캐시 체크 순서: downsample → cache key 계산 → hit 시 즉시 반환 / miss 시 Ollama 호출 → 결과 캐시 저장
+
+**발생 이슈:**
+
+없음 (48개 신규 테스트 + 37개 기존 테스트 1회 실행에서 전체 GREEN)
+
+**생성/수정 파일:**
+- tests/test_performance.py (신규 — 48개 테스트)
+- agents/vision_judge_agent.py (수정 — 다운샘플링, 캐싱, 타임아웃 추가)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+
+1628개 테스트 전체 GREEN (1628 passed, 0 failed) — Ollama 통합 테스트 제외
+
+- Step 47 신규: 48개 PASSED (tests/test_performance.py)
+  - TestConstructorParameters: 12개 (default/custom max_image_size, cache_max_size, timeout, directive, clear_cache, get_cache_stats)
+  - TestImageDownsampling: 10개 (landscape/portrait 리사이즈, small/exact/one-dim 미변경, 종횡비 보존, grayscale/color 유지, ndarray 반환)
+  - TestDownsamplingIntegration: 3개 (large image 결과 반환, max_size=0 비활성, max_size=None 비활성)
+  - TestCacheKey: 6개 (동일 입력 동일 키, purpose/pipeline/image 차이 시 다른 키, str 타입, SHA-256 hex)
+  - TestCaching: 8개 (cache miss Ollama 호출, cache hit 스킵, purpose/pipeline/image 변경 시 miss, clear_cache, 동일 결과, max_size eviction)
+  - TestCacheStatistics: 6개 (초기 0, dict 반환, miss/hit 카운터, clear 후 통계 유지, 누적)
+  - TestTimeout: 3개 (slow 응답 타임아웃, timeout=0 무제한, 빠른 응답 정상)
+- 기존 37개 PASSED (tests/test_vision_judge.py) — 회귀 없음
+- 기존 1580개 PASSED — 회귀 없음
+
+**Gate 3 실행 결과 (Colab Gemma4 원격):**
+- 워밍업: curl "Say OK" → 74.5s (모델 로딩 74.2s + 추론 0.1s)
+- First call (cache miss): 22.6s — 640×480 → 512×384 다운샘플 후 전송
+- Second call (cache hit): 0.0025s — Ollama 호출 없이 캐시에서 즉시 반환
+- Cache stats: {'hits': 1, 'misses': 1} ✅
+- 결과 동일성 검증 통과 ✅

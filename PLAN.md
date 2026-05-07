@@ -2695,3 +2695,34 @@ Badge Error       bg-red-500/20 text-red-400
 **테스트 결과:**
 - 신규: 4개 PASSED (RED 확인 후 GREEN) ✅
 - 전체 비통합: 1580 passed, 0 failed — 회귀 없음 ✅
+
+---
+
+### Step 47: 성능 최적화 (Vision Judge 응답 속도) (2026-05-07)
+
+**작업 결과:**
+
+VisionJudgeAgent 3가지 성능 최적화 구현 (agents/vision_judge_agent.py):
+
+- 이미지 다운샘플링: max 512px 리사이즈 (INTER_AREA, 종횡비 유지), 생성자 `max_image_size=512` (0/None=비활성)
+- 결과 캐싱: SHA-256 LRU 캐시 (OrderedDict, max 50), cache hit 시 Ollama 스킵 (~0.003s)
+- 타임아웃: asyncio.wait_for 래핑, 생성자 `timeout=120.0` (0=무제한)
+
+기존 API 호환: execute() 시그니처 불변, 기존 37개 테스트 회귀 없음
+
+**발생 이슈:**
+
+없음
+
+**생성/수정 파일:**
+- tests/test_performance.py (신규 — 48개 테스트)
+- agents/vision_judge_agent.py (수정 — 다운샘플링, 캐싱, 타임아웃)
+- PROGRESS.md (수정)
+- PLAN.md (수정)
+
+**테스트 결과:**
+
+1628개 테스트 전체 GREEN (1628 passed, 0 failed) — Ollama 통합 테스트 제외
+
+- Step 47: 48개 PASSED (tests/test_performance.py — 생성자 12, 다운샘플링 10, 통합 3, 캐시키 6, 캐싱 8, 통계 6, 타임아웃 3)
+- 기존 37개 PASSED (tests/test_vision_judge.py) — 회귀 없음
