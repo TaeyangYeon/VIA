@@ -3169,3 +3169,89 @@ B. `tests/test_orchestrator_exception_handling.py` — TDD: Red→Green 검증
 - Scenario 3: Directive-driven Inspection (Blob 지시문)
 - Scenario 4: max_iteration=1 → Decision Agent 트리거 확인
 - Scenario 5: Align 소진 → RULE_BASED 강제 + inspection_plan=None 확인
+
+---
+
+### Step 53 — 문서화 완성 + 최종 Git 커밋 준비 (2026-05-11) ✅
+
+**목표:** 프로젝트 문서화 완성. 신규 개발자가 README.md 하나로 설치·실행·개발할 수 있도록. Colab 연결 및 워밍업 절차 명확화. .env.example 작성.
+
+**구현:**
+
+**README.md (전면 재작성)**
+
+기존 README는 Phase 1 초기 상태로 작성되어 있어 완성된 프로젝트 정보를 반영하지 않았음. 다음 섹션으로 전면 재작성:
+- 프로젝트 소개 및 현황 (전체 53 Steps 완료, 테스트 카운트)
+- 주요 기능 표 (7개)
+- 아키텍처 개요: 아키텍처 다이어그램, 실행 파이프라인 흐름도, 15개 에이전트 역할 표
+- 기술 스택 표 (버전 포함)
+- 빠른 시작: 6단계 설치 → 실행 가이드
+- 개발 워크플로우: TDD, PCRO, 3-Gate 검증
+- 프로젝트 구조: 전체 디렉토리 트리 + 파일 설명
+- 테스트: 백엔드(pytest), 프론트엔드(vitest), E2E(Colab 필요) 명령어
+- UI 미리보기: 6개 패널 설명 (스크린샷 플레이스홀더)
+- 문제 해결: 개발 중 실제 발생한 이슈 6개
+
+**문제 해결 섹션 수록 이슈:**
+1. Intel Mac 첫 멀티모달 호출 타임아웃 → GENERATE_TIMEOUT=600.0 설명
+2. 모델명 혼동 (gemma3:4b ← 오류, gemma4:e4b ← 정답)
+3. Colab 터널 콜드 스타트 → 워밍업 절차 링크
+4. npm install deprecated 경고 → 무해함 설명
+5. 포트 8000 충돌 → `lsof -ti:8000 | xargs kill -9`
+6. Python venv 없음 → pyenv 설치 단계
+
+**docs/INSTALL.md (신규)**
+
+- 사전 요구 사항 표 (Homebrew, pyenv, Python 3.11.15, Node.js 18+, Ollama, gemma4:e4b)
+- 10단계 상세 설치: Homebrew → pyenv → Python → Node → Ollama → 클론 → venv → pip → npm → 모델 Pull → .env
+- 개발 모드 실행: 터미널 2개 (백엔드 uvicorn + 프론트엔드 Electron)
+- 패키징된 앱 실행: macOS DMG 빌드 명령어, Windows NSIS 빌드, 앱 자동 시작 동작 설명
+- 설치 확인: curl 헬스체크, pytest 카운트, vitest 카운트, Ollama tags API
+
+**docs/COLAB_GUIDE.md (신규)**
+
+- Colab 연결 필요 케이스 vs 로컬 실행으로 충분한 케이스 비교
+- 모델 선택 표: gemma4:e4b (T4 이상) vs gemma4:27b (A100 권장)
+- Colab 서버 설정 5단계: 노트북 다운로드 → Colab 열기 → GPU 런타임 → 셀 실행 → URL 복사
+  - 노트북 셀 코드 전체 수록 (Ollama 설치/시작, 모델 Pull, cloudflared 터널, 연결 테스트)
+- VIA에서 연결: UI 패널 4단계, API curl 방법
+- **워밍업 절차 (필수)**: 콜드 스타트 첫 요청 실패 경고 + 3가지 워밍업 방법 (UI, curl, Python)
+- 문제 해결: 터널 URL 만료, 모델 Pull 실패, 콜드 스타트 실패, 27B 모델 느림, 세션 자동 종료, E2E 테스트 실행
+
+**.env.example (신규)**
+
+8개 환경 변수 정의, 각 변수에 한국어 설명 주석:
+- `VIA_HOST` — 바인딩 주소 (보안 환경 127.0.0.1 안내 포함)
+- `VIA_PORT` — 서버 포트
+- `VIA_DEBUG` — 개발/프로덕션 모드
+- `VIA_UPLOAD_DIR` — 이미지 저장 경로
+- `VIA_LOG_LEVEL` — 로그 레벨 (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+- `VIA_ENGINE_MODE` — local/colab 전환 (앱 UI에서도 변경 가능 명시)
+- `VIA_COLAB_URL` — cloudflared 터널 URL (비어 있으면 Colab 전환 시 오류)
+- `VIA_OLLAMA_URL` — E2E 테스트 전용
+
+**발생 이슈:**
+- 없음. 문서화 전용 단계로 소스 코드(.py, .ts, .tsx, .js) 수정 없음.
+- 기존 docs/ 디렉토리 존재하나 비어 있었음. INSTALL.md, COLAB_GUIDE.md 신규 생성.
+- .env.example, README.md는 프로젝트 루트에 생성/재작성.
+
+**생성/수정 파일:**
+- `README.md` (전면 재작성 — Phase 1 초기 버전 → 53 Steps 완료 버전)
+- `docs/INSTALL.md` (신규)
+- `docs/COLAB_GUIDE.md` (신규)
+- `.env.example` (신규)
+- `PROGRESS.md` (수정 — Step 53 완료 표시, 현재 단계 → 전체 완료)
+- `PLAN.md` (수정 — Step 53 실행 로그 추가)
+
+**테스트 결과:**
+
+비통합 테스트 (소스 코드 변경 없음 → 회귀 없음):
+- 백엔드 전체 비통합: **1755 PASSED, 0 FAILED** ✅
+- 프론트엔드 전체 (vitest): **394 PASSED, 0 FAILED** ✅
+- **합계: 2149개 테스트 GREEN**
+
+@integration @e2e 테스트: Gemma4 의존성으로 수동 실행 예정 (Step 52와 동일)
+
+**프로젝트 완료 선언:**
+전체 53 Steps / 8 Phases 완료. 백엔드 비통합 1755개 + 프론트엔드 394개 = 2149개 테스트 GREEN.
+Taeyang의 3-Gate 검증 후 최종 Git 커밋 예정.
