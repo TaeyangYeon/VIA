@@ -1,0 +1,66 @@
+appId: com.via.desktop
+productName: VIA
+copyright: "Copyright © 2026 TaeyangYeon"
+
+asar: true
+
+# Renderer + main process files (packed into asar)
+files:
+  - main.js
+  - preload.js
+  - dist/**/*
+
+# Python backend sources (NOT packed in asar — accessed at runtime)
+# NOTE: Python 3.11 and dependencies must be installed on the target machine.
+# The .venv virtual environment is NOT bundled.
+extraResources:
+  - from: ../backend
+    to: backend
+    filter:
+      - "**/*.py"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+  - from: ../agents
+    to: agents
+    filter:
+      - "**/*.py"
+      - "!**/__pycache__/**"
+      - "!**/*.pyc"
+
+directories:
+  buildResources: build
+  output: ../release
+
+# ── macOS ──────────────────────────────────────────────────────────────────────
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+  icon: build/icons/icon.icns
+  category: public.app-category.developer-tools
+  darkModeSupport: true
+
+dmg:
+  title: "VIA ${version}"
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# ── Windows ────────────────────────────────────────────────────────────────────
+win:
+  target:
+    - nsis
+  icon: build/icons/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icons/icon.ico
+  uninstallerIcon: build/icons/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
