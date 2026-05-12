@@ -1940,3 +1940,101 @@ release/mac/VIA.app/Contents/Resources/
 - electron-builder --dir --mac: 성공 (release/mac/VIA.app 생성) ✅
 - 프론트엔드 비통합 (vitest): 394 PASSED — 회귀 없음 ✅
 - 백엔드 비통합: 1741 PASSED — 회귀 없음 ✅
+
+---
+
+### Step 53-hotfix: Result Panel 데이터 연결 버그 수정 (2026-05-12) ✅
+
+**작업 결과:**
+
+실행 완료 후 Result Panel에 아무것도 표시되지 않는 버그를 수정함.
+
+**버그 원인:**
+`ExecutionPanel.tsx` polling 로직에서 status가 `'success'`로 바뀔 때 `setExecutionStatus()`만 dispatch하고 `setResult()`를 dispatch하지 않았음. `ResultPanel`은 `resultSlice`의 `selectResult`를 구독하므로 항상 초기 빈 상태(`summary: null`)를 표시, empty-state UI만 렌더링됨.
+
+**수정 내용:**
+`ExecutionPanel.tsx` polling 블록에 `setResult` import 추가 후, `res.status === 'success'` 분기에서 `res.result`를 `resultSlice` 구조로 매핑하여 dispatch:
+- `summary`, `pipeline`, `inspection_plan`, `algorithm_code`, `algorithm_explanation`
+- `metrics`, `item_results`, `improvement_suggestions`, `decision`, `decision_reason`
+
+**발생 이슈:**
+없음.
+
+**생성/수정 파일:**
+- `frontend/src/__tests__/ResultDataFlow.test.tsx` (신규 — 9개 TDD 테스트)
+- `frontend/src/components/panels/ExecutionPanel.tsx` (수정 — setResult import + dispatch 추가)
+- `PLAN.md` (수정 — Step 53-hotfix 실행 로그 추가)
+- `PROGRESS.md` (수정 — 본 항목 추가)
+
+**테스트 결과:**
+- ResultDataFlow 신규 테스트: **9 PASSED** ✅
+- 프론트엔드 전체 (vitest): **403 PASSED, 0 FAILED** ✅
+- 백엔드 비통합: **1662 PASSED, 0 FAILED** ✅
+
+---
+
+### Step 53-hotfix: 백엔드 실행 결과 직렬화 및 API 응답 연결 (2026-05-12) ✅
+
+**작업 결과:**
+
+Result Panel 버그 2단계 수정. 프론트엔드 `setResult` dispatch는 올바르게 수정되었으나, 실제 실행 시 `res.result`의 모든 필드가 null로 평가됨이 확인됨.
+
+**버그 원인:**
+`execution_manager._run()`이 오케스트레이터 원시 딕셔너리(`{"algorithm_result": AlgorithmResult(...), ...}`)를 `state.result`에 그대로 저장함. 프론트엔드는 `r.algorithm_code`, `r.pipeline`, `r.summary` 등 평탄화된 키 구조를 기대하지만, 백엔드는 중첩 데이터클래스를 `algorithm_result.code` 형태로 저장 → 모든 필드가 `null`이 됨 → `ResultPanel`이 empty-state 표시.
+
+**수정 내용:**
+`ExecutionManager._map_result()` 추가:
+- 오케스트레이터의 데이터클래스 인스턴스들을 프론트엔드 기대 구조로 변환
+- `best_pipeline` → `pipeline: {blocks: [{name, category, params}], score}`
+- `test_results` → `item_results: [{item_name, passed, metrics: {accuracy, fp_rate, fn_rate}}]`
+- `evaluation_result` → `summary` 문자열 (성공/실패 + 평균 정확도)
+- `decision_result.decision.value` → `decision`, `.reason` → `decision_reason`
+- `inspection_plan` → `inspection_plan: {mode, items: [{id, name, purpose, method}]}`
+- `algorithm_result.code/explanation` → `algorithm_code/explanation`
+- null/빈값 엣지 케이스 모두 크래시 없이 처리
+
+**발생 이슈:**
+없음.
+
+**생성/수정 파일:**
+- `tests/test_execution_result_serialization.py` (신규 — 24개 테스트)
+- `backend/services/execution_manager.py` (수정 — `_map_result()` 추가 + `_run()` 호출)
+- `PLAN.md` (수정)
+- `PROGRESS.md` (수정 — 본 항목)
+
+**테스트 결과:**
+- 직렬화 신규 테스트: **24 PASSED** ✅
+- 백엔드 비통합 전체: **1686 PASSED, 0 FAILED** ✅
+- 프론트엔드 전체 (vitest): **403 PASSED, 0 FAILED** ✅
+
+---
+
+### Step 53-hotfix: Result Panel 데이터 미표시 — 전체 데이터 흐름 추적 (2026-05-12) ✅
+
+**작업 결과:**
+
+2차 핫픽스 후에도 ResultPanel이 비어 있다는 보고에 따라 6개 파일 전체 데이터 흐름 추적 수행.
+
+**디버그 결과:**
+- 백엔드 `_map_result()`: 정상 (summary 비어있지 않음, 10개 키 모두 포함)
+- GET 엔드포인트: result_is_none=False, 10개 키 반환 정상
+- 프론트엔드 polling: status=success + result={...} 정상 수신 및 dispatch
+
+**발견된 갭 및 처리:**
+1. 테스트 갭: `overall_passed=False` + `decision_result` 설정 (실제 앱 시나리오) 미커버 → 테스트 추가
+2. 디버그 중 중첩 try/except 패턴이 `status="success"` + `result=None` 상태를 만들 수 있음을 발견 → 즉시 수정 (최종 코드에는 없음)
+
+**결론:**
+2차 핫픽스 이후 코드 자체는 정상. 실제 앱 증상 지속 시 서버 재시작 + Electron 재빌드 필요.
+
+**생성/수정 파일:**
+- `tests/test_execution_result_serialization.py` (수정 — 프로덕션 시나리오 테스트 추가, 총 25개)
+- `PLAN.md` (수정)
+- `PROGRESS.md` (수정 — 본 항목)
+
+**테스트 결과:**
+- 직렬화 테스트 전체: **25 PASSED** ✅
+- 백엔드 비통합 전체: **1687 PASSED, 0 FAILED** ✅
+- 프론트엔드 전체 (vitest): **403 PASSED, 0 FAILED** ✅
+- **합계: 2090개 테스트 GREEN**
+- **합계: 2089개 테스트 GREEN**

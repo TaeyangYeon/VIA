@@ -129,6 +129,89 @@ class ExecutionManager:
             reverse=True,
         )
 
+    def _map_result(self, raw: dict) -> dict:
+        algo = raw.get("algorithm_result")
+        best_pipeline = raw.get("best_pipeline")
+        test_results = raw.get("test_results") or []
+        eval_res = raw.get("evaluation_result")
+        decision = raw.get("decision_result")
+        inspection_plan = raw.get("inspection_plan")
+
+        pipeline_data = None
+        if best_pipeline is not None:
+            blocks = [
+                {
+                    "name": b.name,
+                    "category": getattr(b, "category", ""),
+                    "params": b.params or {},
+                }
+                for b in (best_pipeline.blocks or [])
+            ]
+            pipeline_data = {"blocks": blocks, "score": best_pipeline.score}
+
+        item_results = [
+            {
+                "item_name": tr.item_name,
+                "passed": tr.passed,
+                "metrics": {
+                    "accuracy": tr.metrics.accuracy or 0.0,
+                    "fp_rate": tr.metrics.fp_rate or 0.0,
+                    "fn_rate": tr.metrics.fn_rate or 0.0,
+                },
+            }
+            for tr in test_results
+        ] or None
+
+        passed = eval_res.overall_passed if eval_res else False
+        summary = "검사 완료: " + ("성공" if passed else "실패")
+        if item_results:
+            acc_vals = [ir["metrics"]["accuracy"] for ir in item_results if ir["metrics"]["accuracy"]]
+            if acc_vals:
+                summary += f" (평균 정확도: {sum(acc_vals)/len(acc_vals):.1%})"
+
+        plan_data = None
+        if inspection_plan is not None:
+            plan_data = {
+                "mode": inspection_plan.mode.value if hasattr(inspection_plan.mode, "value") else str(inspection_plan.mode),
+                "items": [
+                    {
+                        "id": item.id,
+                        "name": item.name,
+                        "purpose": item.purpose,
+                        "method": item.method.value if hasattr(item.method, "value") else str(item.method),
+                    }
+                    for item in (inspection_plan.items or [])
+                ],
+            }
+
+        metrics_data = None
+        if eval_res is not None and item_results:
+            acc_vals = [ir["metrics"]["accuracy"] for ir in item_results]
+            fp_vals = [ir["metrics"]["fp_rate"] for ir in item_results]
+            fn_vals = [ir["metrics"]["fn_rate"] for ir in item_results]
+            metrics_data = {
+                "accuracy": sum(acc_vals) / len(acc_vals) if acc_vals else 0.0,
+                "fp_rate": sum(fp_vals) / len(fp_vals) if fp_vals else 0.0,
+                "fn_rate": sum(fn_vals) / len(fn_vals) if fn_vals else 0.0,
+            }
+
+        suggestions = None
+        if decision is not None and decision.reason:
+            suggestions = [decision.reason]
+
+        return {
+            "summary": summary,
+            "pipeline": pipeline_data,
+            "inspection_plan": plan_data,
+            "algorithm_code": algo.code if algo is not None else None,
+            "algorithm_explanation": algo.explanation if algo is not None else None,
+            "metrics": metrics_data,
+            "item_results": item_results,
+            "improvement_suggestions": suggestions,
+            "decision": decision.decision.value if decision is not None else None,
+            "decision_reason": decision.reason if decision is not None else None,
+        }
+
     def _get_orchestrator(self) -> Any:
         if self._factory is not None:
             return self._factory()
@@ -178,7 +261,7 @@ class ExecutionManager:
                 config=config,
             )
             state.status = "success"
-            state.result = result
+            state.result = self._map_result(result)
         except asyncio.CancelledError:
             state.status = "cancelled"
             raise

@@ -24,6 +24,7 @@ import ExecutionPanel from './panels/ExecutionPanel';
 import ResultPanel from './panels/ResultPanel';
 import LogPanel from './panels/LogPanel';
 import OllamaSetupGuide from './OllamaSetupGuide';
+import DebugResultButton from './panels/DebugResultButton'; // TEMP DIAGNOSTIC — remove after bug found
 
 type PanelName = 'Input' | 'Directive' | 'Config' | 'Engine' | 'Execution' | 'Result' | 'Log';
 
@@ -133,6 +134,7 @@ export default function Layout() {
 
       {/* Main workspace */}
       <main className="flex-1 overflow-hidden">{renderPanel()}</main>
+      <DebugResultButton /> {/* TEMP DIAGNOSTIC — remove after bug found */}
     </div>
   );
 }

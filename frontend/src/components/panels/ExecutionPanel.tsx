@@ -8,6 +8,7 @@ import {
   setCurrentAgent,
   setCurrentIteration,
 } from '../../store/slices/executionSlice';
+import { setResult } from '../../store/slices/resultSlice';
 import { startExecution, getExecutionStatus, cancelExecution } from '../../services/api';
 import {
   bg_secondary,
@@ -45,6 +46,21 @@ export default function ExecutionPanel() {
         if (res.status !== 'running') {
           dispatch(setExecutionStatus(res.status as any));
           if (res.error) setErrorMessage(res.error);
+          if (res.status === 'success' && res.result) {
+            const r = res.result as any;
+            dispatch(setResult({
+              summary: r.summary ?? null,
+              pipeline: r.pipeline ?? null,
+              inspection_plan: r.inspection_plan ?? null,
+              algorithm_code: r.algorithm_code ?? null,
+              algorithm_explanation: r.algorithm_explanation ?? null,
+              metrics: r.metrics ?? null,
+              item_results: r.item_results ?? null,
+              improvement_suggestions: r.improvement_suggestions ?? null,
+              decision: r.decision ?? null,
+              decision_reason: r.decision_reason ?? null,
+            }));
+          }
         }
       } catch {
         // silently ignore transient polling errors
